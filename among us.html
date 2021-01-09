@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<!--
+
+Home page: https://www.khanacademy.org/cs/i/6501917627990016
+
+For progress updates join Hc48t2N.
+
+This project does not work on incognito mode. If for any other reason this project doesn't load, please let me know in the Tips & Thanks below! 
+
+Graphics component: https://www.khanacademy.org/computer-programming/tau-graphics/5373284282744832
+
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Among Us Latest (Now in HTML)</title>
+  <style>
+    html,
+    body {
+      overflow: hidden;
+      margin: 0px;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="theCanvas"></canvas>
+  <script src="https://cdn.jsdelivr.net/processing.js/1.4.8/processing.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+  <script type="application/javascript">
+    // Enables ES6 syntax
+    var theCanvas = document.getElementById("theCanvas");
+    var sketchProc = function(processingInstance) {
+      with(processingInstance) {
+        size(theCanvas.width, theCanvas.height);
+
+/**
+
+==== PJS CODE FORMAT ===
+Refer to the EclipseOS code guidelines here: https://github.com/athaun/Eclipse-OS/wiki/Code-Guidelines
+- Most code should be indented by 2 spaces, NOT 4 spaces
+- Single-line comments on the same line as the code is OK
+
+=== DEBUG MODE ===
+Scroll in/out with the mouse wheel
+Right click = add line
+O key = create gap
+P key = clear all
+I key = undo
+**/
+
+/** PJS Setup **/
+// Please reset to this state after setting rectMode(), textAlign(), or stroke()
+rectMode(CENTER);
+textAlign(CENTER, CENTER);
+noStroke();
+
+/** Graphics and Loading */
+var globalUIScale = 1;
+var img = {};
+var imgData = {
+  init: [0, 0, 1],
+  cafeteria_room: [18, -39, 1.48],
+  admin_room: [1, 5, 0.39],
+  reactor_room: [-5, 0, 1.5],
+  o2_room: [5, -22, 0.36],
+  weapons_room: [-10, -30, 0.55],
+  security_room: [-4, -15, 0.33],
+  medbay_room: [5, -4, 0.43],
+  
+  electrical_room: [12, 0, 0.24]                                                                                   ,
+};
+var imgSource; // Define global scope for graphics to load in
+var url = 'https://www.khanacademy.org/api/labs/scratchpads/';
+var ID = 5373284282744832; // ID of the graphics code.
+if (!imgSource) $.getJSON(url + ID + '?callback=?', d => eval(d.revision.code)); // Load graphics
+
+/** Variables **/
+/* Meta */
+var loadLoop;
+var debugMode = false; // Enables zoom and makes `Player.seen` visible above each player.
+var debugX = []; // Positions of the cyan markers for coding the map. Only used in debug mode
+var debugY = [];
+var screenLength = max(width, height); // Max dimention of scren
+var screenDiagonal = Math.sqrt(sq(width) + sq(height)); // Effective size of screen
+var globalHt = 360 / screenDiagonal; // Global image scaling factor, ~0.424 for a 600x600 canvas.
+var globalLOS = screenLength / 4 + 15; // Global rectangular line of sight. On a 600x600 canvas 150 is perfect but 10 is added just to be safe.
+var scene = "menu";
+var gMouseX = 0; // Mouse X position in game coordinates
+var gMouseY = 0; // Mouse Y position in game coordinates
+var mouseIsPressed = false;
+
+/* Gameplay */
+var rooms = [];
+var colliders = [];
+var players = []; // Array of `Bean` (player) objects
+var me;
+var gameUIManager;
+var objs = []; // Interactive components including vents and tasks
+var mouseJustPressed = false;
+var keyJustPressed = false;
+var keys = [];
+var beanWhoReported = null; // The player who reported the body
+var beanNames = ["Red", "Blue", "Green", "Pink", "Orange", "Yellow", "Black", "White", "Purple", "Brown", "Cyan", "Lime"];
+var beanColors = [
+  color(197, 17, 17), // Red
+  color(19, 47, 210), // Blue
+  color(18, 127, 45), // Green
+  color(237, 83, 185), // Pink
+  color(239, 125, 14), // Orange
+  color(244, 244, 88), // Yellow
+  color(63, 72, 78), // Black
+  color(213, 224, 239), // White
+  color(107, 48, 188), // Purple
+  color(114, 73, 30), // Brown
+  color(57, 254, 219), // Cyan
+  color(80, 239, 58) // Lime
+];
+var beanShadows = [// Secondary bean colors. Simple color interpolation between `beanColors` and black is not accurate
+  color(123, 8, 56),
+  color(9, 21, 142),
+  color(10, 77, 45),
+  color(170, 44, 173),
+  color(181, 63, 21),
+  color(178, 125, 31),
+  color(30, 31, 37),
+  color(131, 150, 191),
+  color(60, 23, 124),
+  color(94, 38, 20),
+  color(22, 168, 67),
+  color(36, 169, 190),
+];
+
+/** Camera **/
+var cam = { // Camera variables
+  /*
+    Use coordinate(s) to refer to in-game coordinates.
+    Use position to refer to mouse position on the canvas or relative placement.
+    It's OK to say "Player 1 is at the same position as player 2".
+    Bad:  "Player 3's starting position is (760, -45)"
+    Good: "Player 3's starting coords are (760, -45)"
+  */
+  ht: globalHt, // ht = height, the number of pixels high the camera is from the ground
+  gotoHt: globalHt, // Used for the smooth effect when zooming with the mouse scroll
+  x: 10, // X coordinate of camera
+  y: 10, // Y coordinate of camera
+  hw: width / 2, // hw = half width of canvas
+  hh: height / 2 // hh = half height of canvas
+};
+var X = function(cor) {// Convert from x-coordinate to x-position
+  return (cor - cam.x) / cam.ht + cam.hw;
+};
+var Y = function(cor) {// Convert from y-coordinate to y-position
+  return (cor - cam.y) / cam.ht + cam.hh;
+};
+var S = function(size) {// Convert from in-game size to drawn size
+  return size / cam.ht;
+};
+var RevX = function(pos) {// Convert from x-position to x-coordinate
+  return (pos - cam.hw) * cam.ht + cam.x;
+};
+var RevY = function(pos) {// Convert from y-position to y-coordinate
+  return (pos - cam.hh) * cam.ht + cam.y;
+};
+var RevS = function(size) {// Convert from drawn size to in-game size
+  return size * cam.ht;
+};
+var updateCamera = function() {
+  if (cam.ht !== cam.gotoHt) {
+    if (cam.gotoHt < 0.3 || cam.gotoHt > 50) { // Restrict zoom level
+      cam.gotoHt = cam.ht;
+    } else {
+      cam.ht = cam.gotoHt; // Jump to zoom level
+      draw = loadLoop; // Reload all the images
+    }
+  }
+
+  if (debugMode) {
+    var panSpeed = 10 * cam.ht;
+    if (keys[UP] || keys[87]) {
+      cam.y -= panSpeed;
+    } else if (keys[DOWN] || keys[83]) {
+      cam.y += panSpeed;
+    }
+    if (keys[LEFT] || keys[65]) {
+      cam.x -= panSpeed;
+    } else if (keys[RIGHT] || keys[68]) {
+      cam.x += panSpeed;
+    }
+  } else {
+    cam.x += (me.x - cam.x) * 0.1;
+    cam.y += (me.y - cam.y) * 0.1;
+  }
+};
+
+/** Fonts **/
+var button_font_family = "Arial";
+var font_title = loadFont("Verdana", 50);
+var font_howto = loadFont("Arial Bold", 20);
+var font_game = loadFont("monospace Bold", 20);
+var font_ui = loadFont("Comic Sans MS", 40);
+var font_beans = loadFont("Verdana Bold", 20);
+
+/** Buttons and println source code **/
+var buttons = [];
+var Button = function(on_scene, name, x_position, y_position, button_width, button_height, action) {
+
+  /* Directly assigned properties */
+  this.on_scene = on_scene;
+  this.name = name;
+  this.x = x_position;
+  this.y = y_position;
+  this.width = button_width;
+  this.height = button_height;
+  this.action = action;
+
+  /* Generated properties */
+  this.is_hover = false;
+  this.corner_size = min(button_width, button_height) * 0.2;
+  this.font = loadFont(button_font_family, this.corner_size * 3.4);
+  this.edge_l = x_position - button_width / 2; // Left edge x-position
+  this.edge_r = x_position + button_width / 2; // Right edge x-position
+  this.edge_t = y_position - button_height / 2; // Top edge y-position
+  this.edge_b = y_position + button_height / 2; // Button edge y-position
+
+  /* Push to buttons array */
+  buttons.push(this);
+};
+Button.prototype.on_mouse_click = function() {
+  /* Clicking the button */
+  if (this.is_hover) {
+    this.is_hover = false;
+    this.action();
+  }
+};
+Button.prototype.update = function() {
+  if (scene === this.on_scene) {
+
+    /* Check if mouse hovers over button */
+    if (mouseY > this.edge_t && mouseY < this.edge_b && mouseX > this.edge_l && mouseX < this.edge_r) {
+      this.is_hover = true;
+      cursor(HAND);
+    } else {
+      this.is_hover = false;
+    }
+
+    /* Draw the button */
+    if (this.is_hover) {
+      fill(255, 100);
+    } else {
+      fill(0, 0);
+    }
+    strokeWeight(3);
+    stroke(255);
+    rect(this.x, this.y, this.width, this.height, this.corner_size);
+    fill(255, 255, 255);
+    textFont(this.font);
+    text(this.name, this.x, this.y);
+  }
+};
+var update_buttons = function() {
+  for (var i = 0; i < buttons.length; i++) {
+    buttons[i].update();
+  }
+}
+
+new Button("menu", // Shown on this scene
+  "Singleplayer", // Button name
+  width / 2, // Middle X-coordinate
+  250, // Middle Y-coordinate
+  250, // Button width
+  60, // Button height
+  function() {
+    scene = "pregame";
+  } // Call this when button is pressed
+);
+new Button("menu", "How to play", width / 2 - 135, 334, 250, 50, function() {
+  scene = "howto";
+});
+new Button("menu", "Credits", width / 2 + 135, 334, 250, 50, function() {
+  scene = "credits";
+});
+new Button("howto", "Return", width / 2, 550, 200, 50, function() {
+  scene = "menu";
+});
+new Button("credits", "Return", width / 2, 550, 200, 50, function() {
+  scene = "menu";
+});
+new Button("menu", "Info", width / 2, 470, 150, 50, function() {
+  scene = "help";
+});
+
+/** Collision code **/
+// Credit to @BobLyon https://www.khanacademy.org/cs/i/5567955982876672
+var isBetween = function(c, a, b) {
+  return (a - c) * (b - c) <= 0;
+};
+var isInCircle = function(x, y, cx, cy, diam) {
+  var dx = x - cx;
+  var dy = y - cy;
+  return dx * dx + dy * dy <= diam * diam / 4;
+};
+var lineCircleCollide = function(x1, y1, x2, y2, cx, cy, diam) {
+  var m = (y2 - y1) / (x2 - x1);
+  if (abs(m) > 1024) {
+    return lineCircleCollide(y1, x1, y2, x2, cy, cx, diam);
+  }
+  if (isInCircle(x2, y2, cx, cy, diam)) {
+    return true;
+  }
+  x1 -= cx;
+  x2 -= cx;
+  y1 -= cy;
+  y2 -= cy;
+  var r = diam * diam / 4;
+  var k = y1 - m * x1;
+  var a = (1 + m * m) / r;
+  var b = 2 * m * k / r;
+  var c = k * k / r - 1;
+  var discrim = b * b - 4 * a * c;
+  if (discrim < 0) {
+    return false;
+  }
+  discrim = sqrt(discrim);
+  a *= 2;
+  return isBetween((-b - discrim) / a, x1, x2) || isBetween((-b + discrim) / a, x1, x2);
+};
+var isLineLineIntersect = function(x1, y1, x2, y2, x3, y3, x4, y4) {
+  /** Credit to Jent@ /// **/
+  // x1 must be less than x2, x3 must be less than x4
+  var o = (x3 - x1 - (x2 - x1) / (y2 - y1) * y3 + (x2 - x1) / (y2 - y1) * y1) / ((x2 - x1) / (y2 - y1) * (y4 - y3) - (x4 - x3));
+  var x = x3 + (x4 - x3) * o;
+  var y = y3 + (y4 - y3) * o;
+  return x >= min(x1, x2) && x <= max(x1, x2) && x >= min(x3, x4) && x <= max(x3, x4) && y >= min(y1, y2) && y <= max(y1, y2) && y >= min(y3, y4) && y <= max(y3, y4);
+};
+
+/** Map components **/
+var LCollider = function(x1, y1, x2, y2) {
+  y2 += 0.01;
+  colliders.push(this);
+  this.slack = 15;
+  this.x0 = min(x1, x2) - this.slack;
+  this.x3 = max(x1, x2) + this.slack;
+  this.y0 = min(y1, y2) - this.slack;
+  this.y3 = max(y1, y2) + this.slack;
+  this.drawX1 = x1;
+  this.drawY1 = y1;
+  this.drawX2 = x2;
+  this.drawY2 = y2;
+  var chX = x2 - x1;
+  var chY = y2 - y1;
+  var mag = Math.sqrt(sq(chX) + sq(chY));
+  var shorten = 0.5;
+  chX *= shorten / mag;
+  chY *= shorten / mag;
+  this.x1 = x1 + chX;
+  this.y1 = y1 + chY;
+  this.x2 = x2 - chX;
+  this.y2 = y2 - chY;
+}
+LCollider.prototype.checkCollisionsWith = function(p) {
+  if (p.x - p.wasX === 0 && p.y - p.wasY === 0) {
+    return; // Ignore because player is not moving
+  }
+  if (p.x > this.x0 && p.x < this.x3 && p.y > this.y0 && p.y < this.y3) {
+    // In range
+    if (lineCircleCollide(this.x1, this.y1, this.x2, this.y2, p.x, p.y, p.s)) {
+      if (p.alreadyCollided) {
+        p.x = p.wasX;
+        p.y = p.wasY;
+        return; // Check next player
+      }
+      p.alreadyCollided = true; // To prevent double collisions/out of bounds glitches
+
+      // Player motion
+      var pX = p.x - p.wasX;
+      var pY = p.y - p.wasY;
+      var angle = atan2(pY, pX);
+      var pMag = Math.sqrt(sq(pX) + sq(pY));
+
+      // Normalized player motion rotated 90 degrees
+      var pnX = pY / pMag;
+      var pnY = -pX / pMag;
+
+      // Slope of wall
+      var sX = this.x2 - this.x1;
+      var sY = this.y2 - this.y1;
+      var sMag = Math.sqrt(sq(sX) + sq(sY));
+      sX /= sMag;
+      sY /= sMag;
+
+      // Normalized normal of wall
+      var snX = sY;
+      var snY = -sX;
+
+      var dotProduct = snX * pnX + snY * pnY;
+      var speed = p.ySpeed;
+
+      // Sliding physics here
+      ///_clearLogs();
+      ///println("Player velocity: "+pX.toFixed(2)+" "+pY.toFixed(2)+"\nPlayer slide:    "+pnX.toFixed(2)+" "+pnY.toFixed(2)+"\nWall direction:  "+sX.toFixed(2)+" "+sY.toFixed(2)+"\nWall normal:     "+snX.toFixed(2)+" "+snY.toFixed(2));
+      p.x = p.wasX + sX * dotProduct * speed;
+      p.y = p.wasY + sY * dotProduct * speed;
+
+      if (lineCircleCollide(this.x1, this.y1, this.x2, this.y2, p.x, p.y, p.s)) {
+
+        // Push player away from point 1 if near it
+        var chX = p.x - this.x1;
+        var chY = p.y - this.y1;
+        if (sq(chX) + sq(chY) < sq(p.s)) {
+          p.x += chX / 2;
+          p.y += chY / 2;
+          return;
+        }
+
+        // Push player away from point 2 if near it
+        var chX = p.x - this.x2;
+        var chY = p.y - this.y2;
+        if (sq(chX) + sq(chY) < sq(p.s)) {
+          p.x += chX / 2;
+          p.y += chY / 2;
+          return;
+        }
+
+        // If nothing works, just revert to old position
+        p.x = p.wasX;
+        p.y = p.wasY;
+      }
+    }
+  }
+};
+
+var Task = function(room, type, x, y) {
+  this.room = room;
+  this.type = type;
+  this.x = x;
+  this.y = y;
+
+  this.update = function() {
+    ellipse(X(this.x), Y(this.y), S(1), S(1));
+  };
+};
+
+var Vent = function(id, x, y, connections) {
+  objs.push(this);
+  this.id = id;
+  this.x = x;
+  this.y = y;
+  this.s = 1.4;
+  this.connections = connections;
+  this.maxDist = 2;
+  this.maxDistSq = sq(this.maxDist);
+
+  this.update = function() {
+    var distSq = sq(me.x - this.x) + sq(me.y - this.y);
+    if (distSq > this.maxDistSq) {
+      fill(255, 0, 0);
+    } else {
+      fill(255, 255, 255);
+    }
+    rect(X(this.x), Y(this.y), S(this.s), S(this.s / 2));
+  };
+};
+
+var Room = function(type, x, y, w, h) { /// Old code, delete ASAP
+  rooms.push(this);
+  this.names = [];
+  if (type.includes("-")) {
+    var types = type.split("-");
+    this.type = types[0];
+    this.subtype = types[1];
+  } else {
+    this.type = type;
+    this.subtype = "none";
+  }
+  this.x = x;
+  this.y = y;
+  this.w = w;
+  this.h = h;
+  this.vertices = [];
+  this.walls = [];
+
+  var x1, y1, x2, y2;
+  x1 = this.x;
+  y1 = this.y;
+  x2 = this.x + this.w;
+  y2 = this.y + this.h;
+
+  switch (this.type) {
+
+    case "junction":
+      this.vertices = [{
+          x: x2,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y2
+        },
+        {
+          x: x2,
+          y: y2
+        },
+      ];
+      if (this.subtype === "hor") {
+        new LCollider(x1, y1, x2, y1);
+        new LCollider(x1, y2, x2, y2);
+      } else if (this.subtype === "ver") {
+        new LCollider(x1, y1, x1, y2);
+        new LCollider(x2, y1, x2, y2);
+      } else if (this.subtype === "TL") {
+        new LCollider(x1, y1, x1, y2);
+        new LCollider(x1, y1, x2, y1);
+      } else if (this.subtype === "BR") {
+        new LCollider(x2, y1, x2, y2);
+        new LCollider(x1, y2, x2, y2);
+      } else if (this.subtype === "TR") {
+        new LCollider(x1, y1, x1, y2);
+        new LCollider(x1, y2, x2, y2);
+      } else if (this.subtype === "BL") {
+        new LCollider(x2, y1, x2, y2);
+        new LCollider(x1, y1, x2, y1);
+      } else if (this.subtype === "L") {
+        new LCollider(x1, y1, x1, y2);
+      } else if (this.subtype === "B") {
+        new LCollider(x1, y2, x2, y2);
+      } else if (this.subtype === "T") {
+        new LCollider(x1, y1, x2, y1);
+      }
+      break;
+
+    case "corner":
+
+      var vs = [{
+          x: x2,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y2
+        },
+        {
+          x: x2,
+          y: y2
+        },
+      ];
+      var vsInd = function(index) {
+        return vs[(index + vs.length) % vs.length];
+      };
+      var clipCorner = {
+        "TL": 1,
+        "TR": 0,
+        "BL": 2,
+        "BR": 3
+      } [this.subtype];
+
+      var v = vs.splice(clipCorner, 1)[0];
+      var vUp = vsInd(clipCorner);
+      var vDown = vsInd(clipCorner - 1);
+
+      var vMidUp = {
+        x: (v.x + vUp.x) / 2,
+        y: (v.y + vUp.y) / 2
+      };
+      var vMidDown = {
+        x: (v.x + vDown.x) / 2,
+        y: (v.y + vDown.y) / 2
+      };
+      vs.splice(clipCorner, 0, vMidUp); // Insert new edges
+      vs.splice(clipCorner, 0, vMidDown);
+
+      // Corner and 2 edges surounding corner
+      new LCollider(vUp.x, vUp.y, vMidUp.x, vMidUp.y);
+      new LCollider(vMidUp.x, vMidUp.y, vMidDown.x, vMidDown.y);
+      new LCollider(vMidDown.x, vMidDown.y, vDown.x, vDown.y);
+
+      // Opposite side 1
+      var oppoV = vsInd(clipCorner - 2);
+      new LCollider(vDown.x, vDown.y, (vDown.x * 3 + oppoV.x) / 4, (vDown.y * 3 + oppoV.y) / 4);
+      new LCollider(oppoV.x, oppoV.y, (vDown.x + oppoV.x * 3) / 4, (vDown.y + oppoV.y * 3) / 4);
+
+      // Opposite side 2
+      new LCollider(vUp.x, vUp.y, (vUp.x * 3 + oppoV.x) / 4, (vUp.y * 3 + oppoV.y) / 4);
+      new LCollider(oppoV.x, oppoV.y, (vUp.x + oppoV.x * 3) / 4, (vUp.y + oppoV.y * 3) / 4);
+
+      // Apply
+      this.vertices = vs;
+      break;
+
+    case "square":
+      this.vertices = [{
+          x: x2,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y2
+        },
+        {
+          x: x2,
+          y: y2
+        },
+      ];
+      if (this.subtype === "admin") {
+        new LCollider(x1, y1, x2, y1);
+        new LCollider(x1, (y1 * 4 + y2 * 3) / 7, x1, y2);
+        new LCollider(x2, y2, x1, y2);
+      } else if (this.subtype === "coms") {
+
+        new LCollider(x1, y1, (x1 + x2) / 2, y1);
+        new LCollider(x1, y1, x1, y2);
+        new LCollider(x2, y2, x1, y2);
+      } else if (this.subtype === "electrical") {
+        new LCollider(x1, y1, x2, y1);
+        new LCollider(x1, y1, x1, y2);
+        new LCollider((x1 * 2 + x2) / 3, y2, x2, y2);
+      }
+      new LCollider(x2, y2, x2, y1);
+      break;
+
+    case "storage":
+      this.vertices = [{
+          x: x2,
+          y: y1
+        }, // TR
+        {
+          x: (x1 * 2 + x2) / 3,
+          y: y1
+        }, //TL top
+        {
+          x: x1,
+          y: (y1 * 3 + y2) / 4
+        }, //TL left
+        {
+          x: x1,
+          y: (y1 + y2 * 3) / 4
+        }, //BL left
+        {
+          x: (x1 * 2 + x2) / 3,
+          y: y2
+        }, //BL bottom
+        {
+          x: x2,
+          y: y2
+        }, // BR
+      ];
+      var v = this.vertices;
+      var TR = v[0];
+      var TLT = v[1];
+      var TLL = v[2];
+      var BLL = v[3];
+      var BLB = v[4];
+      var BR = v[5];
+      new LCollider(TR.x, TR.y, (TLL.x + TR.x * 7) / 8, TR.y);
+      new LCollider(TLT.x, TLT.y, (TLL.x * 3.56 + TR.x * 6.2) / 10, TR.y);
+      new LCollider(TLT.x, TLT.y, TLL.x, TLL.y);
+      new LCollider(TLL.x, TLL.y, BLL.x, (TLL.y + BLL.y) / 2);
+
+      new LCollider(BLL.x, BLL.y, BLB.x, BLB.y);
+      new LCollider(BLB.x, BLB.y, BR.x, BR.y);
+      new LCollider(BR.x, BR.y, BR.x, (BR.y * 4 + TR.y * 3) / 7);
+      new LCollider(BR.x, (BR.y * 2.9 + TR.y * 7.1) / 10, TR.x, TR.y);
+      break;
+
+    case "sudoku":
+      var vs = [{
+          x: x2,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y1
+        },
+        {
+          x: x1,
+          y: y2
+        },
+        {
+          x: x2,
+          y: y2
+        },
+      ];
+      var vsInd = function(index) {
+        return vs[(index + vs.length) % vs.length];
+      };
+      var clipEdges = {
+        "L": [1, 2],
+        "R": [3, 0],
+        "T": [0, 1],
+        "B": [2, 3]
+      } [this.subtype];
+      var c1 = clipEdges[0];
+      var c2 = clipEdges[1];
+
+      // Default edges
+      new LCollider(vsInd(c2).x, vsInd(c2).y, vsInd(c2 + 1).x, vsInd(c2 + 1).y);
+      new LCollider(vsInd(c2 + 2).x, vsInd(c2 + 2).y, vsInd(c2 + 1).x, vsInd(c2 + 1).y);
+      new LCollider(vsInd(c2 + 2).x, vsInd(c2 + 2).y, vsInd(c2 + 3).x, vsInd(c2 + 3).y);
+
+      // Clipped edge
+      var cMidLX = (vs[c1].x * 2 + vs[c2].x) / 3;
+      var cMidLY = (vs[c1].y * 2 + vs[c2].y) / 3;
+      var cMidRX = (vs[c1].x + vs[c2].x * 2) / 3;
+      var cMidRY = (vs[c1].y + vs[c2].y * 2) / 3;
+      new LCollider(vs[c1].x, vs[c1].y, cMidLX, cMidLY);
+      new LCollider(vs[c2].x, vs[c2].y, cMidRX, cMidRY);
+      this.vertices = vs;
+      break;
+
+
+  }
+
+  this.addTask = function(type, x, y) {
+    new Task(this, type, x, y);
+    return this;
+  };
+
+  this.addNames = function(names) {
+    this.names.concat(names);
+    return this;
+  };
+
+  this.addVent = function(id, x, y, connections) {
+    new Vent(id, x, y, connections);
+  };
+
+  this.update = function() {
+    fill(100, 50);
+    if (me.x > this.x && me.x < this.x + this.w && me.y > this.y && me.y < this.y + this.h) {
+      /// In room
+    }
+
+    stroke(100);
+    strokeWeight(S(3));
+    beginShape();
+    for (var i = 0; i < this.vertices.length; i++) {
+      var v = this.vertices[i];
+      vertex(X(v.x), Y(v.y));
+    }
+    endShape(CLOSE);
+  };
+  this.drawWalls = function() {};
+};
+
+var RoomNew = function(name, x1, y1, x2, y2, imageName, wallData, collisionData) {
+  rooms.push(this);
+  this.x1 = x1; // TL corner 
+  this.y1 = y1;
+  this.x2 = x2;
+  this.y2 = y2;
+  this.name = name;
+  this.aliases = [];
+  this.imageName = imageName;
+  this.image = img[imageName];
+  this.imageX = x1 + imgData[imageName][0]; // TL corner of image
+  this.imageY = y1 + imgData[imageName][1];
+  this.walls = [];
+  this.addWalls(wallData);
+  this.addCollisions(collisionData);
+  return this;
+};
+RoomNew.prototype.addNames = function(names) {
+  if (typeof names === "string") { // String (1 name)
+    this.aliases.push(names);
+  } else if (Array.isArray(names)) { // Array of names
+    this.aliases.concat(names);
+  }
+};
+RoomNew.prototype.addTask = function() {};
+RoomNew.prototype.addVent = function() {};
+RoomNew.prototype.addWalls = function(wallData) {
+  var wd = wallData;
+  if (!wd) return;
+  var wds = wd.split(" ");
+  for (var i = 0; i < wds.length; i++) { // For every continuous wall group...
+    var section = wds[i].split("|");
+    var wallSection = [];
+    for (var j = 0; j < section.length; j++) {
+      var p = section[j].split(",");
+      wallSection.push({
+        x: Number(p[0]),
+        y: Number(p[1])
+      });
+    }
+    this.walls.push(wallSection);
+  }
+};
+RoomNew.prototype.addCollisions = function(collisionData) {
+  var cd = collisionData;
+  if (!cd) return;
+  var cds = cd.split(" ");
+  for (var i = 0; i < cds.length; i++) { // For every continuous wall group...
+    var section = cds[i].split("|");
+    for (var j = 0; j < section.length - 1; j++) {
+      var p1 = section[j].split(",");
+      var p2 = section[j + 1].split(",");
+      new LCollider(Number(p1[0]), Number(p1[1]), Number(p2[0]), Number(p2[1]));
+    }
+  }
+};
+RoomNew.prototype.update = function() {
+  image(this.image, X(this.imageX), Y(this.imageY));
+}
+RoomNew.prototype.drawWalls = function() {
+  if (!debugMode) {
+    // Walls
+    noFill();
+    strokeWeight(S(5));
+    stroke(17, 27, 27);
+    for (let section of this.walls) {
+      beginShape();
+      for (let p of section) {
+        vertex(X(p.x), Y(p.y));
+      }
+      endShape();
+    }
+    strokeWeight(S(2));
+    stroke(46, 46, 46);
+    for (let section of this.walls) {
+      beginShape();
+      for (let p of section) {
+        vertex(X(p.x), Y(p.y));
+      }
+      endShape();
+    }
+  }
+};
+
+/** Player code **/
+var drawCharacter = function(x, y, size, facingLeft, col, cycle) {
+  var col1, col2;
+  if (typeof col === "number") {
+    col1 = beanColors[col];
+    col2 = beanShadows[col];
+  } else {
+    col1 = col;
+    col2 = lerpColor(color(0, 0, 0), col, 0.6);
+  }
+  cycle = cycle || 0;
+  rectMode(LEFT);
+  pushMatrix();
+  translate(x - 200 * size, y - 200 * size);
+  scale(size);
+  if (facingLeft) {
+    scale(-1, 1);
+    translate(-400, 0);
+  }
+
+  noStroke();
+  if (cycle === 0) {
+    fill(0, 0, 0);
+    ellipse(203, 173, 39, 26);
+    rect(181, 166, 45, 57, 13);
+    rect(170, 181, 14, 43, 10);
+    rect(182, 211, 21, 27, 10);
+    rect(206, 211, 18, 24, 10);
+
+    fill(col1);
+    rect(174, 186, 7, 33, 63);
+    rect(177, 186, 4, 33);
+    rect(187, 165, 31, 34, 63);
+    rect(190, 180, 32, 34, 63);
+    rect(188, 175, 32, 34, 63);
+
+    fill(col2);
+    rect(174, 192, 7, 27, 55);
+    rect(177, 192, 4, 27);
+    rect(185, 210, 14, 24, 63);
+    rect(210, 221, 10, 11, 23);
+    triangle(192, 221, 186, 179, 185, 221);
+    triangle(201, 219, 187, 198, 185, 221);
+    triangle(220, 219, 222, 202, 208, 219);
+    rect(189, 212, 27, 7);
+    triangle(220, 216, 220, 228, 210, 215);
+
+    fill(0, 0, 0);
+    rect(194, 173, 36, 22, 63);
+
+    fill(75, 100, 110);
+    rect(198, 176, 29, 16, 63);
+
+    fill(150, 200, 220);
+    rect(201, 176, 24, 10, 63);
+
+    fill(255, 255, 255);
+    rect(207, 176, 15, 7, 63);
+
+  } else if (cycle === 1) {
+    fill(0, 0, 0);
+    ellipse(203, 173, 39, 26);
+    rect(181, 166, 45, 57, 13);
+    rect(170, 181, 14, 43, 10);
+
+    fill(col1);
+    rect(174, 186, 7, 33, 63);
+    rect(177, 186, 4, 33);
+    rect(187, 165, 31, 34, 63);
+    rect(190, 180, 32, 34, 63);
+    rect(188, 175, 32, 34, 63);
+
+    fill(col2);
+    rect(174, 192, 7, 27, 55);
+    rect(177, 192, 4, 27);
+
+    pushMatrix();
+    translate(176, 210);
+    rotate(radians(26));
+    fill(0, 0, 0);
+    rect(17, -3, 10, 15, 28);
+    rect(0, 0, 26, 15, 28);
+
+    translate(3, 1);
+    fill(col2);
+    rect(0, 0, 20, 10, 28);
+    rect(10, -5, 10, 10, 28);
+    popMatrix();
+
+    pushMatrix();
+    translate(216, 209);
+    rotate(radians(44));
+
+    fill(0, 0, 0);
+    rect(0, -3, 29, 18, 23);
+
+    fill(col2);
+    rect(0, 0, 26, 11, 23);
+    popMatrix();
+
+    triangle(192, 221, 186, 179, 185, 221);
+    triangle(201, 219, 187, 198, 185, 221);
+    triangle(220, 219, 222, 202, 208, 219);
+    rect(189, 212, 27, 7);
+    triangle(220, 216, 220, 228, 210, 215);
+
+    fill(0, 0, 0);
+    rect(194, 173, 36, 22, 63);
+
+    fill(75, 100, 110);
+    rect(198, 176, 29, 16, 63);
+
+    fill(150, 200, 220);
+    rect(201, 176, 24, 10, 63);
+
+    fill(255, 255, 255);
+    rect(207, 176, 15, 7, 63);
+  } else if (cycle === 2) {
+    fill(0, 0, 0);
+    ellipse(203, 173, 39, 26);
+    rect(181, 166, 45, 57, 13);
+    rect(170, 181, 14, 43, 10);
+
+    fill(col1);
+    rect(174, 186, 7, 33, 63);
+    rect(177, 186, 4, 33);
+    rect(187, 165, 31, 34, 63);
+    rect(190, 180, 32, 34, 63);
+    rect(188, 175, 32, 34, 63);
+
+    fill(col2);
+    rect(174, 192, 7, 27, 55);
+    rect(177, 192, 4, 27);
+
+    pushMatrix();
+    translate(214, 213);
+    rotate(radians(81));
+
+    fill(0, 0, 0);
+    rect(0, -3, 26, 20, 23);
+
+    fill(col2);
+    rect(0, 0, 23, 13, 23);
+    popMatrix();
+
+    pushMatrix();
+    translate(174, 224);
+    rotate(radians(-10));
+    fill(0, 0, 0);
+    rect(0, -2, 31, 16, 28);
+
+    translate(3, 1);
+    fill(col2);
+    rect(0, 0, 25, 10, 28);
+    rect(15, -3, 10, 5, 28);
+    popMatrix();
+
+    triangle(192, 221, 186, 179, 185, 221);
+    triangle(201, 219, 187, 198, 185, 221);
+    triangle(220, 219, 222, 202, 208, 219);
+    rect(189, 212, 27, 7);
+
+    fill(0, 0, 0);
+    rect(194, 173, 36, 22, 63);
+
+    fill(75, 100, 110);
+    rect(198, 176, 29, 16, 63);
+
+    fill(150, 200, 220);
+    rect(201, 176, 24, 10, 63);
+
+    fill(255, 255, 255);
+    rect(207, 176, 15, 7, 63);
+  } else if (cycle === 3) {
+    fill(0, 0, 0);
+    ellipse(203, 173, 39, 26);
+    rect(181, 166, 45, 57, 13);
+    rect(170, 181, 14, 43, 10);
+
+    fill(col1);
+    rect(174, 186, 7, 33, 63);
+    rect(177, 186, 4, 33);
+    rect(187, 165, 31, 34, 63);
+    rect(190, 180, 32, 34, 63);
+    rect(188, 175, 32, 34, 63);
+
+    fill(col2);
+    rect(174, 192, 7, 27, 55);
+    rect(177, 192, 4, 27);
+    triangle(192, 221, 186, 179, 185, 221);
+    triangle(201, 219, 187, 198, 185, 221);
+    triangle(220, 219, 222, 202, 208, 219);
+    rect(189, 212, 27, 7);
+
+    pushMatrix();
+    translate(213, 214);
+    rotate(radians(90));
+
+    fill(0, 0, 0);
+    rect(0, -1, 28, 18, 6);
+
+    fill(col2);
+    rect(-2, 2, 27, 12, 4);
+    popMatrix();
+
+    pushMatrix();
+    translate(212, 214);
+    rotate(radians(90));
+
+    fill(0, 0, 0);
+    rect(0, -4, 17, 32, 23);
+
+    fill(col2);
+    rect(-2, 0, 16, 24, 6);
+    popMatrix();
+
+    fill(0, 0, 0);
+    rect(194, 173, 36, 22, 63);
+
+    fill(75, 100, 110);
+    rect(198, 176, 29, 16, 63);
+
+    fill(150, 200, 220);
+    rect(201, 176, 24, 10, 63);
+
+    fill(255, 255, 255);
+    rect(207, 176, 15, 7, 63);
+  }
+
+
+  popMatrix();
+  rectMode(CENTER);
+  noStroke();
+};
+
+var drawCharacterBody = function(x, y, s, col, step) {
+  /** Author: Superelectronic12@Superelectronic **/
+
+  rectMode(LEFT);
+  pushMatrix();
+  s *= 0.02;
+  translate(x-200*s, y-200*s);
+  scale(s);
+  noStroke();
+
+  if (step >= 1 && step < 30) {
+    fill(0, 0, 0);
+    rect(181, 198, 43, 27, 13);
+    rect(170, 200, 14, 24, 10);
+    rect(182, 211, 21, 27, 10);
+    rect(206, 211, 18, 24, 10);
+    fill(0);
+    ellipse(201, 203, 40, 22);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    ellipse(202, 202, 35, 16);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(202, 202, 30, 12);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    rect(173, 203, 8, 18, 55);
+    rect(185, 212, 14, 24, 63);
+    rect(210, 221, 10, 11, 23);
+    triangle(195, 218, 185, 207, 185, 231);
+    triangle(201, 219, 187, 220, 185, 221);
+    triangle(220, 230, 221, 206, 208, 219);
+    rect(189, 212, 27, 9);
+    triangle(220, 216, 220, 228, 210, 215);
+    fill(110);
+    ellipse(200, 195, 7, 7);
+    ellipse(206, 195, 7, 7);
+    rect(200.5, 195, 5, 10);
+    fill(220);
+    ellipse(200, 195, 5, 5);
+    ellipse(206, 195, 5, 5);
+    rect(201.5, 195, 3, 10);
+    ellipse(203, 196, 6, 4);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(203, 206, 10, 4);
+  }
+  if (step >= 1 && step < 2) {
+    fill(220, 0, 0);
+    ellipse(196, 196, 31, 9);
+    ellipse(191, 199, 32, 9);
+  }
+  if (step >= 2 && step < 3) {
+    fill(220, 0, 0);
+    ellipse(193, 196, 31, 9);
+    ellipse(188, 199, 32, 9);
+  }
+  if (step >= 3 && step < 4) {
+    fill(220, 0, 0);
+    ellipse(192, 195, 28, 9);
+    ellipse(187, 198, 28, 9);
+  }
+  if (step >= 4 && step < 5) {
+    fill(220, 0, 0);
+    ellipse(190, 195, 25, 8);
+    ellipse(185, 198, 25, 8);
+  }
+  if (step >= 5 && step < 6) {
+    fill(220, 0, 0);
+    ellipse(185, 192, 25, 8);
+    ellipse(180, 195, 25, 8);
+  }
+  if (step >= 6 && step < 7) {
+    fill(220, 0, 0);
+    ellipse(178, 190, 25, 6);
+    ellipse(173, 194, 20, 6);
+  }
+  if (step >= 7 && step < 8) {
+    fill(220, 0, 0);
+    ellipse(172, 188, 20, 6);
+    ellipse(170, 192, 16, 6);
+  }
+  if (step >= 8 && step < 9) {
+    fill(220, 0, 0);
+    ellipse(167, 188, 15, 5);
+    ellipse(167, 192, 12, 6);
+  }
+  if (step >= 9 && step < 10) {
+    fill(220, 0, 0);
+    ellipse(162, 189, 11, 3);
+    ellipse(165, 193, 9, 4);
+  }
+  if (step >= 10 && step < 11) {
+    fill(220, 0, 0);
+    ellipse(160, 189, 7, 2);
+    ellipse(160, 194, 5, 2);
+  }
+
+  if (step >= 30 && step < 33) {
+    fill(0, 0, 0);
+    pushMatrix();
+    rect(181, 198, 43, 27, 13);
+    rect(170, 200, 14, 16, 10);
+    rect(182, 211, 21, 27, 10);
+    rect(206, 211, 18, 24, 10);
+    fill(0);
+    ellipse(201, 210, 40, 22);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    ellipse(202, 209, 35, 16);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(202, 209, 30, 12);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    rect(173, 203, 8, 10, 55);
+    rect(185, 219, 14, 16, 63);
+    rect(210, 221, 10, 11, 23);
+    triangle(195, 218, 185, 215, 185, 231);
+    triangle(201, 219, 187, 220, 185, 221);
+    triangle(220, 230, 221, 213, 208, 219);
+    rect(189, 218, 27, 5);
+    triangle(220, 225, 220, 226, 210, 215);
+    pushMatrix();
+    translate(0, 47);
+    scale(1, 0.8);
+    fill(110);
+    ellipse(200, 195, 7, 7);
+    ellipse(206, 195, 7, 7);
+    rect(200.5, 195, 5, 10);
+    fill(220);
+    ellipse(200, 195, 5, 5);
+    ellipse(206, 195, 5, 5);
+    rect(201.5, 195, 3, 10);
+    ellipse(203, 196, 6, 4);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(203, 206, 10, 4);
+    popMatrix();
+    popMatrix();
+  }
+
+  if (step >= 33 && step < 36) {
+    fill(0, 0, 0);
+    pushMatrix();
+    rect(181, 198, 43, 27, 13);
+    fill(lerpColor(color(0, 0, 0), col, 0.5));
+    rect(185, 200, 36, 24, 13);
+    fill(0);
+    ellipse(201, 215, 40, 22);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    ellipse(202, 214, 35, 16);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(202, 214, 30, 12);
+    fill(0);
+    rect(180, 195, 18, 12, 10);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    rect(182, 197, 14, 8, 55);
+    pushMatrix();
+    translate(0, 376);
+    scale(1, -0.8);
+    fill(110);
+    ellipse(200, 195, 7, 7);
+    ellipse(206, 195, 7, 7);
+    rect(200.5, 195, 5, 10);
+    fill(220);
+    ellipse(200, 195, 5, 5);
+    ellipse(206, 195, 5, 5);
+    rect(201.5, 195, 3, 10);
+    ellipse(203, 196, 6, 4);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(203, 206, 10, 4);
+    popMatrix();
+    popMatrix();
+  }
+
+  if (step >= 36) {
+    fill(0, 0, 0);
+    pushMatrix();
+    rect(181, 198, 43, 27, 13);
+    fill(lerpColor(color(0, 0, 0), col, 0.5));
+    rect(185, 200, 36, 24, 13);
+    fill(0);
+    ellipse(201, 219, 40, 27);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    ellipse(202, 219, 35, 21);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(202, 219, 30, 17);
+    pushMatrix();
+    fill(0);
+    rect(185, 195, 28, 12, 10);
+    ellipse(189, 204, 14, 14);
+    fill(lerpColor(color(0, 0, 0), col, 0.6));
+    rect(187, 197, 24, 8, 55);
+    ellipse(189, 204, 10, 10);
+    popMatrix();
+    pushMatrix();
+    translate(-67, 438);
+    scale(1.2, -1.2);
+    rotate(radians(-6));
+    fill(110);
+    ellipse(200, 195, 7, 7);
+    ellipse(206, 195, 7, 7);
+    rect(200.5, 195, 5, 10);
+    fill(220);
+    ellipse(200, 195, 5, 5);
+    ellipse(206, 195, 5, 5);
+    rect(201.5, 195, 3, 10);
+    ellipse(203, 196, 6, 4);
+    fill(lerpColor(color(0, 0, 0), col, 0.2));
+    ellipse(203, 206, 10, 4);
+    popMatrix();
+    popMatrix();
+  }
+  popMatrix();
+};
+
+var Bean = function(name, isHuman, isImposter, x, y) {
+  this.isDead = false;
+  this.deadStep = 0;
+  players.push(this);
+  this.name = name;
+  this.isHuman = isHuman;
+  this.isImposter = isImposter;
+  this.x = this.wasX = this.seekX = x;
+  this.y = this.wasY = this.seekY = y;
+  this.s = 15; // Size
+  this.id = players.length - 1;
+  this.col = beanColors[this.id];
+  this.colName = beanNames[this.id];
+  this.facingEast = true;
+  this.xSpeed = 2.5; // Speed in the X direction
+  this.ySpeed = this.xSpeed * 0.88; // Speed in the Y direction
+  this.mouseRangeSlowdown = 50; // For smooth mouse controls
+  this.speedMultiplier = 1; // For player control
+  this.isMoving = false; // Read-only
+  this.alreadyCollided = false; // For collision physics
+  this.sees = []; // For partial visibility for humans and voting logic for AI
+  this.notSees = [];
+  this.nearbyColliders = []; // For optimization
+  if (isImposter) {
+    this.killTimer = this.killTimerReset = 10; // In seconds
+    this.killRange = 40; // In game coordinates
+  }
+  this.reportRange = 40;
+};
+Bean.prototype.humanControls = function() {
+  // Key controls
+  this.speedMultiplier = 0;
+  if (keys[LEFT] || keys[65]) {
+    this.speedMultiplier = 1;
+    this.seekX = this.x - 1;
+  } else if (keys[RIGHT] || keys[68]) {
+    this.speedMultiplier = 1;
+    this.seekX = this.x + 1;
+  }
+  if (keys[UP] || keys[87]) {
+    this.speedMultiplier = 1;
+    this.seekY = this.y - 1;
+  } else if (keys[DOWN] || keys[83]) {
+    this.speedMultiplier = 1;
+    this.seekY = this.y + 1;
+  }
+
+  // Mouse controls
+  if (mouseIsPressed && mouseButton === LEFT && !gameUIManager.isMouseHoverAny) {
+    this.speedMultiplier = 1;
+    this.seekX = gMouseX;
+    this.seekY = gMouseY;
+    var mouseMag = Math.sqrt(sq(mouseX - X(this.x)) + sq(mouseY - Y(this.y)));
+    if (mouseMag < this.mouseRangeSlowdown) {
+      this.speedMultiplier = mouseMag / this.mouseRangeSlowdown;
+    }
+  }
+
+};
+Bean.prototype.ai = function() {
+  if (this.id === 2) {
+
+    if (sq(this.x - me.x - 5) + sq(this.y - me.y + 5) > sq(this.ySpeed)) {
+      this.seekX = me.x + 5;
+      this.seekY = me.y - 5;
+    }
+    return;
+  }
+  this.seekX = this.x + cos(100 + frameCount * (100 + this.id) / 3800);
+  this.seekY = this.y - sin(frameCount * (77 + this.id) / 5777);
+};
+Bean.prototype.update = function() {
+  if (this.isDead) return;
+
+  // Movement
+  this.speedMultiplier = 1;
+  this.alreadyCollided = false;
+  this.wasX = this.x;
+  this.wasY = this.y;
+  this.seekX = this.x;
+  this.seekY = this.y;
+
+  // Change velX and velY
+  if (this.isHuman) {
+    this.humanControls();
+  } else {
+    this.ai();
+  }
+
+  // More movement code
+  this.isMoving = (this.seekX !== this.x || this.seekY !== this.y);
+  var velX = this.seekX - this.x;
+  var velY = this.seekY - this.y;
+  if (velX || velY) {
+    if (velX < 0) {
+      this.facingEast = false;
+    }
+    if (velX > 0) {
+      this.facingEast = true;
+    }
+    var mag = Math.sqrt(sq(velX) + sq(velY));
+    velX *= this.xSpeed / mag;
+    velY *= this.ySpeed / mag;
+    this.x += velX * this.speedMultiplier;
+    this.y += velY * this.speedMultiplier;
+  }
+
+  // Find nearby colliders for optimized collisions
+  this.nearbyColliders = [];
+  for (var i = 0; i < colliders.length; i += 1) {
+    var w = colliders[i];
+    var hGLOS = 100;
+    if (
+      (abs(w.x1 - this.x) < hGLOS && abs(w.y1 - this.y) < hGLOS) ||
+      (abs(w.x2 - this.x) < hGLOS && abs(w.y2 - this.y) < hGLOS)) {
+      this.nearbyColliders.push(w);
+    }
+  }
+
+  // Update player-player visibility (PPV)
+  this.sees = [];
+  this.notSees = [];
+  for (var i = 0; i < players.length; i++) {
+    var isIntersection = false;
+    var p = players[i];
+    if (p === this) { // If player is myself, ignore
+      continue;
+    }
+    if (abs(p.x - this.x) > globalLOS || abs(p.y - this.y) > globalLOS) { // If player is "off-screen", consider it not seen
+      this.notSees.push(p);
+      continue;
+    }
+    for (var j = 0; j < this.nearbyColliders.length; j++) {
+      /* Thanks to everyone in the KACC discord server for helping me figure this out */
+      var w = this.nearbyColliders[j]; // w for collider (wall)
+      isIntersection = isLineLineIntersect(w.x1, w.y1, w.x2, w.y2, this.x, this.y, p.x, p.y);
+      if (isIntersection) { // If wall blocks line of sight
+        this.notSees.push(p);
+        break;
+      }
+    }
+    if (!isIntersection) {
+      this.sees.push(p);
+    }
+  }
+
+  // Imposter logic
+  if (this.isImposter) {
+    this.killTimer -= 1 / 60;
+  }
+};
+Bean.prototype.draw = function() {
+  // Drawing
+  if (this.isDead) {   
+    drawCharacterBody(X(this.x), Y(this.y), S(this.s), this.col, this.deadStep++);
+    return;      
+  }
+
+  // Calculate player position
+  var x = X(this.x);
+  var y = Y(this.y);
+  var s = S(this.s);
+  if (x < -50 || x > width + 50 || y < -50 || y > height + 50) {// If player is off-screen, ignore
+    return;
+  }
+
+  // Calculate bobbing animation when walking
+  var cycle = 0;
+  var walkY = 0;
+  if (this.isMoving) {
+    walkY = (1 - cos(radians(frameCount * 360 / 20))) * this.s / 12;
+    cycle = floor(frameCount / 5) % 4;
+  }
+
+  // Shadow
+  fill(0, 100);
+  ellipse(x, y + s * 0.35, s * 0.95, s * 0.25);
+
+  // Draw bean
+  drawCharacter(x, y - S(this.s / 4 + walkY), s / 60, !this.facingEast, this.id, cycle);
+
+  // Show PPV (player-player visibility) if in debug mode
+  if (debugMode) {
+    stroke(255);
+    strokeWeight(1);
+    for (var i = 0; i < this.sees.length; i++) {
+      fill(this.sees[i].col);
+      ellipse(x + i * 10 - this.sees.length * 5 + 5, y - S(this.s), 10, 10);
+    }
+    noStroke();
+  }
+};
+Bean.prototype.drawName = function() {
+  // Draw name above player
+  var x = X(this.x);
+  var y = Y(this.y);
+  var s = S(this.s);
+  fill(0);
+  var yPos = y - s * 1.2;
+  text(this.name, x-1, yPos+1);
+  text(this.name, x-1, yPos-1);
+  text(this.name, x+1, yPos-1);
+  text(this.name, x+1, yPos+1);
+  if (this.isImposter) {
+    fill(255, 0, 0);
+  } else {
+    fill(255);
+  }
+  text(this.name, x, yPos);
+}
+Bean.prototype.lineOfSight = function() {
+  /** Credit to Jent @iforgothisusername /// **/
+  if (debugMode) {
+    stroke(0, 50);
+    fill(5, 5, 10, 50);
+  } else {
+    fill(5, 5, 10);
+  }
+  noStroke();
+
+  for (let room of rooms) {
+    for (let wall of room.walls) {
+      for (let i = 0; i < wall.length - 1; i++) {
+
+        var left = wall[i];
+        var right = wall[i + 1];
+        quad(
+          X(left.x), Y(left.y),
+          X(right.x), Y(right.y),
+          X(this.x + (right.x - this.x) * 100), Y(this.y + (right.y - this.y) * 100),
+          X(this.x + (left.x - this.x) * 100), Y(this.y + (left.y - this.y) * 100)
+        );
+      }
+
+    }
+  }
+};
+Bean.prototype.kill = function(targetBean) {
+  this.x = targetBean.x;
+  this.y = targetBean.y;
+  this.killTimer = this.killTimerReset;
+  targetBean.isDead = true; // Set killed player as dead
+}
+Bean.prototype.reportBody = function() {
+  beanWhoReported = this;
+  scene = "vote";
+}
+
+/** More UI **/
+var UIElement = function(imageName, x, y, available, action, key, number) {
+  gameUIManager.elements.push(this);
+  this.imageName = imageName;
+  this.image = img[imageName];
+  this.x = x;
+  this.y = y;
+  this.w = this.image.width;
+  this.h = this.image.height;
+  this.available = available;
+  this.action = action;
+  this.key = key;
+  this.number = number || (()=>null);
+  this.isMouseHover = false;
+};
+UIElement.prototype.show = function() {
+  var isHover = mouseX > this.x && mouseX < this.x + this.w && mouseY > this.y && mouseY < this.y + this.h;
+  
+  var isAvailable = this.available();
+  if (isAvailable) {
+    if ((keyJustPressed && keys[this.key]) || (mouseJustPressed && isHover)) {
+      this.action();
+    }
+  }
+  tint(255, isAvailable ? 255 : 99);
+  image(this.image, this.x, this.y);
+  noTint();
+
+  // Display number
+  if (typeof this.number === "function") {
+    var displayNumber = this.number();
+    if (displayNumber !== null) {
+      text(displayNumber, this.x+this.w/2, this.y+this.h/2);
+    }
+  }
+  
+  if (isHover && isAvailable) {
+    cursor("pointer");
+  }
+  this.isMouseHover = isHover;
+};
+
+var GameUIManager = function() {
+  this.elements = [];
+  this.isMouseHoverAny = false;
+};
+GameUIManager.prototype.populateUI = function() {
+  new UIElement("report_button", width - 200, height - 100,
+  
+  function() {// When available
+    this.bestI = null;
+    var bestDist = sq(me.reportRange);
+    for (var i = 0; i < me.sees.length; i++) {
+      var p = me.sees[i];
+      if (p.isDead) {// If crewmate is dead
+        var distance = sq(me.x - p.x) + sq(me.y - p.y);
+        if (distance < bestDist) {
+          bestDist = distance;
+          this.bestI = i;
+        }
+      }
+    }
+    return this.bestI !== null;   
+  },
+
+  function() {
+    me.reportBody();
+  },
+
+  82 // R key to report body
+  );
+
+
+
+  if (me.isImposter) {
+    new UIElement("kill_button", width - 100, height - 100,
+    
+    function() {// When available
+      if (me.killTimer > 0) return false;
+      this.bestI = null;
+      var bestDist = sq(me.killRange);
+      for (var i = 0; i < me.sees.length; i++) {
+        var p = me.sees[i];
+        if (!p.isImposter && !p.isDead) {// If crewmate and not dead
+          var distance = sq(me.x - p.x) + sq(me.y - p.y);
+          if (distance < bestDist) {
+            bestDist = distance;
+            this.bestI = i;
+          }
+        }
+      }
+      return this.bestI !== null;
+    },
+    
+    function() {// Action
+      if (this.bestI !== null) { 
+        var closest = me.sees[this.bestI];
+        me.kill(closest);
+      }
+    },
+
+    81, // Q key to kill
+
+    function() {
+      return me.killTimer > 0 ? Math.ceil(me.killTimer) : null;
+    });
+  }
+}
+GameUIManager.prototype.show = function() {
+  this.isMouseHoverAny = false;
+  textFont(font_ui);
+  fill(255);
+  for (let element of this.elements) {
+    element.show();
+    this.isMouseHoverAny = this.isMouseHoverAny || element.isMouseHover;
+  }
+};
+
+/** Scenes **/
+var menuBalls = [];
+for (var i = 0; i < 25; i++) {
+  menuBalls.push({
+    x: random(0, width),
+    y: random(0, height),
+    s: random(0.5, 5)
+  });
+}
+var menuIn, menuWasIn;
+menuIn = menuWasIn = false;
+var menuFc = 0;
+var sceneMenu = function() {
+
+  background(0);
+
+  // Title
+  textFont(font_title);
+  text("Among Us", width / 2, 100);
+  menuWasIn = menuIn;
+  menuIn = mouseX > 160 && mouseX < 440 && mouseY > 80 && mouseY < 120;
+  if (menuIn || (12 * menuFc) % 1200 < 800) {
+    if (menuIn && !menuWasIn) {
+      menuFc = -20;
+    } else {
+      menuFc++;
+    }
+    stroke(0, 0, 0);
+    strokeWeight(2);
+    for (var i = 0; i < 50; i++) {
+      var x = (12 * (i + menuFc)) % 1200;
+      line(x - 600, 0, x, 200);
+    }
+  }
+
+  // Snowballs
+  fill(255);
+  stroke(255);
+  strokeWeight(1);
+  for (var i = 0; i < menuBalls.length; i++) {
+    var ms = menuBalls[i];
+    ms.x += ms.s / 4;
+    ellipse(ms.x, ms.y, ms.s, ms.s);
+  }
+  if (frameCount % 20 === 0) {
+    menuBalls.push({
+      x: 0,
+      y: random(0, height),
+      s: random(0.5, 7)
+    });
+  }
+
+  drawCharacter(width / 2 - 238, 452, 1.9, false, 0);
+  drawCharacter(width / 2 - 165, 514, 2, false, 1);
+  drawCharacter(width / 2 + 215, 445, 1.9, true, 2);
+  drawCharacter(width / 2 + 142, 508, 2, true, 3);
+};
+
+var sceneHowto = function() {
+  background(0);
+  textFont(font_title);
+  text("How to Play", 300, 50);
+
+};
+var sceneCredits = function() {
+
+  background(0);
+  textFont(font_title);
+  text("Among Khan", 300, 50);
+};
+
+var sceneIdk = function() {
+  background(1, 0, 20);
+  textFont(font_title);
+  text("Subscribe?", 300, 50);
+  textFont(font_howto);
+  text("hmm", 300, 300);
+};
+
+var initGame;
+var scenePregame = function() {
+  background(31, 30, 43);
+
+  textFont(font_title);
+  text("load 2", 300, 50);
+
+  initGame();
+
+};
+
+var sceneGame = function() {
+  gMouseX = RevX(mouseX);
+  gMouseY = RevY(mouseY);
+
+  background(0);
+  updateCamera();
+
+  /* Draw rooms excluding walls */
+  for (var i = 0; i < rooms.length; i++) {
+    rooms[i].update();
+  }
+
+  /* Update player movement and AI */
+  for (var i = players.length - 1; i >= 0; i--) {
+    var player = players[i];
+    player.update();
+    /* Check collisions with nearby colliders (walls) */
+    for (var j = 0; j < player.nearbyColliders.length; j++) {
+      player.nearbyColliders[j].checkCollisionsWith(player);
+    }
+  }
+
+  /* Draw players that are NOT visible to me so they can appear in the shadows */
+  for (var i = 0; i < me.notSees.length; i++) {
+    var player = me.notSees[i];
+    player.draw();
+  }
+
+  /* Restrict player vision */
+  me.lineOfSight();
+
+  /* Draw colliders if in debug mode, otherwise draw room walls */
+  if (debugMode && !debugX.length) {
+    strokeWeight(S(3.5));
+    stroke(0, 255, 0);
+    for (var i = 0; i < me.nearbyColliders.length; i++) {
+      var w = me.nearbyColliders[i];
+      line(X(w.drawX1), Y(w.drawY1), X(w.drawX2), Y(w.drawY2));
+    }
+  } else {
+    for (var i = 0; i < rooms.length; i++) {
+      rooms[i].drawWalls();
+    }
+  }
+  noStroke();
+
+  for (var i = objs.length - 1; i >= 0; i--) {
+    var obj = objs[i];
+    obj.update();
+    if (obj.isDead) {
+      objs.splice(i, 1);
+    }
+  }
+
+  /* Draw players that are visible to me */
+  for (var i = me.sees.length - 1; i >= 0; i--) {
+    var player = me.sees[i];
+    player.draw();
+  }
+  me.draw(); // Cannot see yourself
+  textFont(font_beans);
+  for (var i = me.sees.length - 1; i >= 0; i--) {
+    var player = me.sees[i];
+    if (!player.isDead) player.drawName();
+  }
+  if (!me.isDead) me.drawName();
+
+  /* Report, kill, vent, etc icons */
+  gameUIManager.show();
+
+  /* For debugging */
+  if (debugMode) {
+    cam.x = me.x;
+    cam.y = me.y; //fix position of player
+
+
+    var printThis = "";
+    var newX, newY;
+    strokeWeight(2);
+    if (debugX.length) {
+
+      // Draw cyan dots
+
+      for (var i = 0; i < debugX.length; i++) {
+        if (debugX[i] === "gap") {
+          continue;
+        }
+        fill(0, 255, 247);
+        ellipse(X(debugX[i]), Y(debugY[i]), 10, 10);
+        if (i > 0 && debugX[i - 1] !== "gap") {
+          stroke(0, 255, 255, 200);
+          line(X(debugX[i]), Y(debugY[i]), X(debugX[i - 1]), Y(debugY[i - 1]));
+        }
+      }
+      // Predict next line position
+      var lastI = debugX.length - 1;
+      if (debugX[lastI] === "gap") { // If gap between walls, draw red line instead of cyan
+        lastI--;
+        stroke(255, 0, 0, 150);
+      } else {
+        stroke(0, 255, 255);
+      }
+      var lastX = debugX[lastI];
+      var lastY = debugY[lastI];
+      var chX = gMouseX - lastX;
+      var chY = gMouseY - lastY;
+      var mag = Math.sqrt(sq(chX) + sq(chY));
+      var angle = atan2(chY, chX);
+      if (!keys[32]) {
+        angle = radians(45) * round(angle / radians(45)); // Snap into 45-angle direction
+      }
+      newX = round(lastX + mag * cos(angle));
+      newY = round(lastY + mag * sin(angle));
+
+      // Draw it
+      line(X(lastX), Y(lastY), X(newX), Y(newY));
+      noStroke();
+
+      // If P key is pressed, clear positions
+      if (keys[80]) {
+        debugX = [];
+        debugY = [];
+      }
+
+      // If O key is pressed, create a wall gap
+      if (keys[79] && keyJustPressed) {
+        debugX.push("gap");
+        debugY.push("gap");
+      }
+
+      // If I key is pressed, undo
+      if (keys[73] && keyJustPressed) {
+        debugX.pop();
+        debugY.pop();
+      }
+    } else {
+      newX = gMouseX;
+      newY = gMouseY;
+    }
+    if (mouseJustPressed && mouseButton === RIGHT) { // If right clicked, add another dot
+      debugX.push(round(newX));
+      debugY.push(round(newY));
+      for (var i = 0; i < debugX.length; i++) {
+        if (debugX[i] === "gap") {
+          printThis = printThis.slice(0, printThis.length - 1);
+          printThis += " ";
+        } else {
+          printThis += debugX[i] + "," + debugY[i] + "|";
+        }
+      }
+      printThis = '"' + printThis.slice(0, printThis.length - 1) + '"'; // Remove the last 
+
+      if (mouseJustPressed) {// Print wall or collision string to console
+        console.log(printThis);
+      }
+    }
+    fill(255, 255, 255);
+    textFont(font_game);
+    text("FPS " + __frameRate.toFixed(2), 100, 50);
+  } else {
+
+    fill(255, 255, 255);
+    textFont(font_game);
+    text("PRESS X FOR DEBUG MODE", 165, 50);
+  }
+
+};
+
+/** Create instances **/
+// Cafeteria and connecting junctions
+//new Room("cafeteria", 543, 2, 352, 352).addTask("wires", 45, 5).addTask("wires", 55, 6).addNames("in cafeteria", "at spawn", "near spawn");
+
+//new LCollider();
+new Room("junction-T", 318, 155, 241, 62).addNames("between spawn and upper engine", "between spawn and medbay", "coming out of medbay", "left of cafeteria");
+new LCollider(318, 217, 458, 217);
+new LCollider(501, 217, 558, 217);
+new Room("junction-hor", 895, 156, 57, 60).addNames("by weapons", "near weapons");
+new Room("junction-L", 698, 355, 60, 114).addNames("near admin", "above storage", "below cafeteria");
+new LCollider(698 + 60, 355, 698 + 60, 394);
+new LCollider(698 + 60, 458, 698 + 60, 468);
+
+// admin and connecting room
+new Room("junction-hor", 759, 396, 35, 60);
+//new Room("square-admin", 795, 396, 146, 143);
+
+// TR of map
+//new Room("corner-TR", 953, 118, 138, 134);
+new Room("junction-ver", 990, 253, 64, 30).addNames("a", "b");
+new Room("junction-hor", 972, 310, 18, 47).addNames("a", "b");
+new Room("junction-L", 990, 283, 63, 25).addNames("a", "b");
+new Room("junction-BL", 1055, 284, 62, 38).addNames("a", "b");
+new Room("junction-L", 1052, 360, 65, 11).addNames("a", "b");
+new Room("junction-BR", 1056, 386, 62, 45).addNames("a", "b");
+new Room("junction-TL", 992, 373, 62, 60).addNames("a", "b").addVent();
+new Room("junction-ver", 992, 432, 62, 75).addNames("a", "b");
+
+
+new Room("junction-B", 990, 310, 61, 47).addNames("a", "b");
+new Room("junction", 1053, 310, 63, 75).addNames("a", "b");
+new LCollider(949, 162, 949, 170);
+
+// shields, coms
+new Room("corner-BR", 953, 508, 140, 160).addNames("a", "b");
+new Room("junction-T", 781, 552, 173, 71).addNames("a", "b");
+new LCollider(781, 552 + 71, 781 + 87, 552 + 71);
+new LCollider(939, 552 + 71, 866 + 87, 552 + 71);
+new Room("junction-ver", 870, 625, 68, 16).addNames("a", "b");
+new Room("square-coms", 793, 642, 145, 115);
+
+// storage
+new Room("storage", 600, 470, 180, 275);
+
+// electrical and surrounding junctions
+new Room("junction-ver", 445, 594, 46, 14);
+new Room("junction-B", 417, 610, 182, 64);
+new LCollider(423, 610, 444, 610);
+new LCollider(492, 610, 599, 610);
+
+new Room("junction-TR", 370, 610, 50, 64);
+new Room("junction-BL", 370, 526, 50, 84);
+new Room("junction-hor", 317, 526, 52, 60);
+new LCollider(315, 588, 315, 600);
+new LCollider(370, 588, 370, 606);
+
+
+// engines junctions in between
+new Room("corner-BL", 175, 483, 140, 160);
+new Room("corner-TL", 176, 114, 140, 160);
+new LCollider(210, 274, 224, 274);
+new LCollider(210, 483, 227, 483);
+new Room("junction-ver", 228, 404, 50, 77);
+new Room("junction-hor", 278, 347, 40, 53);
+new Room("junction-hor", 192, 348, 33, 53);
+new Room("junction-ver", 226, 274, 52, 70).addNames("a", "b");
+new Room("junction", 225, 344, 53, 62).addNames("a", "b");
+new LCollider(316, 217, 316, 235);
+
+// reactor
+//new Room("sudoku-R", 57, 294, 133, 163);
+
+// navigation
+new Room("sudoku-L", 1199, 265, 92, 175);
+new Room("junction-hor", 1118, 323, 80, 60);
+
+
+new LCollider(409,155,466,155);
+
+
+var initGame = function() {
+  new RoomNew("cafeteria", 543, 2, 895, 354, "cafeteria_room", "560,155|560,86|614,32|811,32|899,120|899,156 899,217|899,275|818,356|758,356 698,356|632,356|562,286|562,219", "560,155|560,86|614,32|811,32|899,120|899,156 899,217|899,275|818,356|758,356 698,356|632,356|562,286|562,219");
+  new RoomNew("admin", 792, 393, 942, 543, "admin_room", "794,396|949,396|949,544|794,544|794,456", "793,404|793,426|949,426|949,543|794,543|794,457 832,479|909,479|909,509|832,509|832,479");
+  new RoomNew("reactor", 56, 229, 208, 447, "reactor_room", "192,350|192,289|143,289|143,234|107,234|57,274|57,449|112,487|142,487|142,434|192,434|192,401", "191,349|191,306|142,306|142,251|112,251|74,289|74,303|93,303|108,318|108,367|121,372|121,389|77,389|77,461|111,485|141,485|141,435|191,435|191,401");
+  new RoomNew("o2", 861, 283, 968, 390, "o2_room", "192,350|192,289|143,289|143,234|107,234|57,274|57,449|112,487|142,487|142,434|192,434|192,401", "978,310|908,310|866,367 866,373|979,373|979,358");
+  new RoomNew("weapons", 952, 117, 1090, 255, "weapons_room", "941,155|941,87|1021,87|1093,157|1093,256|1047,256 996,256|977,256|943,222|943,216", "942,175|966,175|966,161|984,143|984,105|1025,105|1090,170|1054,170|1054,188|1043,204|1043,261 1000,261|1000,217|986,208|942,208 1038,172|1027,186|996,185|988,174|989,163|1013,154|1037,167");
+  new RoomNew("security", 319, 292, 399, 456, "security_room", "316,332|316,297|343,278|372,278|401,295|401,437|316,437|316,401|280,401", "316,346|316,326|334,307|387,307|399,314|399,358|369,358|369,371|381,371|381,395|400,395|400,435|316,435|316,401");
+  new RoomNew("medbay",415,234,547,401, "medbay_room", "500,231|538,231|538,315|603,377|603,413|452,413|420,381|420,231|457,231", "499,218|499,246|511,246|511,270|538,270|538,287|510,287|510,303|538,303|538,333|603,392|603,413|453,413|420,380|420,303|447,303|447,288|421,288|421,270|447,270|447,246|463,246|463,218");
+  
+  new RoomNew("electrical",445,425,580,604, "electrical_room", "457,424|601,424|601,467|554,509|554,569|518,605|494,605|494,631 456,631|456,424", "457,445|501,445|501,451|600,451|600,466|552,509|552,568|516,604|494,604 457,604|457,533|508,533|508,507|458,507|458,446")
+
+
+  // Players
+
+  var angle = Math.PI * 1.2;
+  var mag = 20;
+  var centerX = 728;
+  var centerY = 187; 
+  me = new Bean("Me", true, true, 632,101);
+  ///
+  
+  
+  ///
+  for (var i = 0; i < 1; i ++) {/// revert to i < 9
+    angle += Math.PI / 10;
+    new Bean("CPU "+(i+2), false, !i, centerX+cos(angle)*mag, centerY+cos(angle)*mag);
+  }
+  cam.x = me.x;
+  cam.y = me.y;
+
+  gameUIManager = new GameUIManager();
+  gameUIManager.populateUI();
+
+  scene = "game";
+};
+
+/** Mouse and Key Events **/
+(function(w) {
+  return this[w];
+})("window").Processing.instances[0].externals.canvas.onwheel = function(e) {
+  e.preventDefault();
+}; /*Source: www.khanacademy.org/cs/i/3452477363 */
+mouseScrolled = function() {
+  if (debugMode) {
+    if (mouseScroll < 0) {
+      cam.gotoHt *= 2;
+    } else if (mouseScroll > 0) {
+      cam.gotoHt /= 2;
+    }
+  }
+};
+
+mousePressed = function() {
+  mouseIsPressed = true;
+  mouseJustPressed = true;
+  for (var i = 0; i < buttons.length; i++) {
+    buttons[i].on_mouse_click(); // Check every button if clicked
+  }
+};
+mouseReleased = function() {
+  mouseIsPressed = false;
+};
+keyPressed = function() {
+  keyJustPressed = true;
+  keys[keyCode] = true;
+  if (keys[88]) { // Go in and out of debug mode
+    debugMode = !debugMode;
+    if (!debugMode) {
+      cam.gotoHt = globalHt;
+    }
+  }
+};
+
+keyReleased = function() {
+  keys[keyCode] = false;
+};
+
+var mainLoop = function() {
+  cursor(ARROW);
+
+  switch (scene) {
+    case "game":
+      sceneGame();
+      break;
+    case "vote":
+      scene = "game";///
+      break;
+    case "pregame":
+      scenePregame();
+      break;
+    case "menu":
+      sceneMenu();
+      break;
+    case "howto":
+      sceneHowto();
+      break;
+    case "credits":
+      sceneCredits();
+      break;
+    case "help":
+      scene = "menu";
+      break;
+
+      // Add scene here
+
+    default:
+      console.log("Scene '" + scene + "' does not exist.");
+  }
+
+  update_buttons();
+  mouseJustPressed = false;
+  keyJustPressed = false;
+};
+
+
+/* Meta-loop that preloads graphics before starting the main loop */
+var loadImg;
+var loadIndex = 0;
+var imgKeys;
+var loadLoop = function() {
+  var keyName;
+  if (imgSource) {
+    if (!imgKeys) {
+      imgKeys = Object.keys(imgSource)
+    }
+    if (loadIndex >= imgKeys.length) { // If all graphics are done loading
+      for (var i = 0; i < rooms.length; i++) {
+        if (rooms[i].image !== undefined) { /// new type
+          var room = rooms[i];
+          room.image = img[room.imageName];
+        }
+
+      }
+      loadIndex = 0; // Reset counter in case images need to be reloaded again
+      draw = mainLoop;
+      return;
+    }
+    keyName = imgKeys[loadIndex];
+    if (keyName in imgData) {
+      img[keyName] = imgSource[keyName](0, 0, imgData[keyName][2] / cam.ht);
+    } else {
+      img[keyName] = imgSource[keyName](0, 0, globalUIScale);
+    }
+    loadIndex++;
+  }
+  background(0);
+  textSize(30);
+  fill(255);
+  resetMatrix();
+  textAlign(CENTER, CENTER);
+  textFont(font_game);
+  if (imgSource) {
+    text("Loading..." + floor(100 * loadIndex / imgKeys.length) + "%", width / 2, height / 2);
+    textSize(20);
+    text(keyName, width / 2, height / 2 + 80); // Show name of image
+  } else {
+    text("Fetching...", width / 2, height / 2);
+  }
+};
+draw = loadLoop;
+}
+    };
+    (function() {
+      theCanvas.width = window.innerWidth;
+      theCanvas.height = window.innerHeight;
+      var processingInstance = new Processing(theCanvas, sketchProc);
+    })();
+  </script>
+  <script></script>
+</body>
+
+</html>
