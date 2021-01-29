@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta content="stuff, to, help, search, engines, not" name="keywords">
+<meta content="What this page is about." name="description">
+<meta content="Display Webcam Stream" name="title">
+<title>Display Webcam Stream</title>
+  
+<style>
+#videoElement {
+    width: 500px;
+    height: 375px;
+    background-color: #666;
+}
+#canvas {
+  background-color: rgb(225, 225, 225);
+}
+</style>
+</head>
+  
+<body>
+    <video autoplay="true" id="videoElement"></video>
+    <canvas id="canvas" width="400px" height="400px"></canvas>
+
+<script>
+var video = document.querySelector("#videoElement");
+
+var canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+
+if (navigator.mediaDevices.getUserMedia) {       
+    navigator.mediaDevices.getUserMedia({video: true})
+  .then(function(stream) {
+    video.srcObject = stream;
+  })
+  .catch(function(err0r) {
+    console.log("Something went wrong!");
+  });
+}
+
+function map(value, istart, istop, ostart, ostop) {
+  return ostart + (ostop - ostart) * ((value - istart) / (istop - istart));
+}
+
+function intervalTimer() {
+	ctx.clearRect(0, 0, 400, 400);
+	
+	ctx.drawImage(video, 0, 0, 400, 400);
+  
+	var imgData = ctx.getImageData(0, 0, 400, 400);
+	var temp = imgData.data;
+	for(var i = 0; i < temp.length; i += 4){
+		temp[i] = 255 - temp[i];
+		temp[i+1] = 255 - temp[i+1];
+		temp[i+2] = 255 - temp[i+2];
+	}
+	imgData.data = temp;
+	
+	ctx.putImageData(imgData, 0, 0);
+
+}
+
+setInterval(intervalTimer, 75);
+
+</script>
+</body>
+</html>
