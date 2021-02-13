@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+    <head>
+		<meta charset="utf-8">
+        <title>KA GIF 4 U</title>
+		<link rel="shortcut icon" type="image/jpg" href="https://cdn.kastatic.org/images/avatars/svg/old-spice-man-blue.svg"/>
+		<style>
+			video,
+			input {
+			  display: block;
+			}
+			body {
+				font-family: monospace;
+			}
+		</style>
+    </head>
+    <body>
+<h1 style="margin-bottom: -15px;">KA GIF 4 U</h1>
+<p>Created By: <a href="https://www.khanacademy.org/profile/VXS" target="_blank" style="margin-top: 0px;">VEXCESS</a></p>
+
+<h3>Upload a video</h3>
+<input id="videoInput" type="file" accept="video/*" />
+
+<h3>Output Size</h3>
+<input type="number" id="outputSizeInput" min="5" max="400" value="200">
+
+<h3>Frames Captured Per Second</h3>
+<input type="number" id="captureRateInput" min="1" max="60" value="10">
+
+<h3>Color Reduction Amount</h3>
+<input type="number" id="colorReductionInput" min="2" max="128" value="10">
+
+<p id="fileSize">File Size: 0kb</p>
+
+<p id="status">Waiting</p>
+
+<p id="results"></p>
+
+<video id="video" controls autoplay controls muted width="400px" height="400px" style="display: inline-block; padding-right: 0px; border: none; margin-right: -4px;"></video>
+
+<canvas id="canvas" width="400px" height="400px" style="background:rgb(51, 51, 51); display:inline-block; padding-left: 0px; margin-left: -404px; border: none; z-index: 1; position:relative;"></canvas>
+
+
+<script>
+function localFileVideoPlayer() {
+  var URL = window.URL || window.webkitURL;
+  var playSelectedFile = function(event) {
+    var file = this.files[0];
+    var videoNode = document.querySelector('video');
+
+    videoNode.src = URL.createObjectURL(file);
+  };
+  var inputNode = document.querySelector('input');
+  inputNode.addEventListener('change', playSelectedFile, false);
+}
+localFileVideoPlayer();
+
+
+var canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+var video = document.getElementById('video');
+
+var outputSize = 400;
+
+var resultData = [];
+
+var frameCount = 0;
+
+var captureRate = 0;
+var intervalSpeed = 0;
+
+var colorDecrease = document.getElementById("colorReductionInput").value;
+
+var compressed = false;
+var compressLoader = -1;
+
+var startTime = -1;
+var videoDuration = -1;
+
+var kb = 0;
+
+var IMGdata = {
+	width: outputSize,
+	height: outputSize,
+	colors: [],
+	pixels: "",
+};
+
+function compress(number){
+	return String.fromCharCode(number+174);
+}
+
+var draw = function() {
+	//set variables
+	if(videoDuration === -1 && startTime === -1 && video.duration > 0){
+		startTime = Date.now();
+		videoDuration = video.duration;
+	}
+	
+	outputSize = document.getElementById("outputSizeInput").value;
+	if(outputSize < 5){
+		outputSize = 5;
+	}else if(outputSize > 400){
+		outputSize = 400;
+	}
+	var bigger = video.width;
+	if(video.height > bigger){
+		bigger = video.height;
+	}
+	var scaleFactor = outputSize/bigger;
+	var videoW = Math.floor(video.width*scaleFactor);
+	var videoH = Math.floor(video.height*scaleFactor);	
+	
+	captureRate = document.getElementById("captureRateInput").value;
+	if(captureRate < 1){
+		captureRate = 1;
+	}else if(captureRate > 60){
+		captureRate = 60;
+	}
+	
+	colorDecrease = document.getElementById("colorReductionInput").value;
+	if(colorDecrease < 2){
+		colorDecrease = 2;
+	}else if(colorDecrease > 128){
+		colorDecrease = 128;
+	}
+
+	//change the intervalSpeed
+	if(Math.ceil(1000/captureRate) !== intervalSpeed){
+		clearInterval(run);
+		intervalSpeed = Math.ceil(1000/captureRate);
+		run = setInterval(draw, intervalSpeed);
+	}
+	
+	if(document.getElementById("videoInput").value.length === 0){
+		document.getElementById("status").innerText = "Waiting For Input...";
+	}else if(compressLoader === -1){
+		document.getElementById("status").innerText = "Capturing GIF... " + Math.floor((Date.now()-startTime)/1000/videoDuration*100) + "% Complete";
+	}else if(compressLoader !== -1 && compressLoader < resultData.length-2){
+		document.getElementById("status").innerText = "Compressing... " + Math.floor(compressLoader/(resultData.length-3)*100) + "% Complete";
+	}else if(document.getElementById("results").innerHTML < 1){
+		document.getElementById("status").innerText = "Finalizing File...";
+	}else{
+		document.getElementById("status").innerText = "Complete!";
+	}
+	
+	if(document.getElementById("videoInput").value.length > 0 && !compressed){
+		//compress data
+		if(compressLoader !== -1 && compressLoader < resultData.length){
+			if(captureRate !== 60){
+				document.getElementById("captureRateInput").value = 60;
+				captureRate = 60;
+				clearInterval(run);
+				intervalSpeed = Math.ceil(1000/captureRate);
+				run = setInterval(draw, intervalSpeed);
+			}
+			
+			IMGdata = {
+				width: videoW,
+				height: videoH,
+				colors: [],
+				pixels: "",
+			};
+			
+			var data = resultData[compressLoader];
+			
+			for(var i = 0; i < data.length; i += 4){
+				var clr = compress(Math.round(data[i]/5)) + compress(Math.round(data[i+1]/5)) + compress(Math.round(data[i+2]/5));
+				
+				if(!IMGdata.colors.includes(clr)){
+					IMGdata.colors.push(clr);
+				}
+				
+				IMGdata.pixels += compress(IMGdata.colors.indexOf(clr));
+			}
+			
+			var compressedPixels = "";
+			var i = 0;
+			while(i < IMGdata.pixels.length){
+				var currentSymbol = IMGdata.pixels.charAt(i);
+				var i2 = i;
+				while(IMGdata.pixels.charAt(i2) === currentSymbol && i2 < IMGdata.pixels.length){
+				  i2++;
+				}
+				
+				compressedPixels += currentSymbol + compress(i2-i);
+				
+				i = i2;
+			}
+			IMGdata.pixels = compressedPixels;
+			
+			//update the data
+			kb -= Math.round(resultData[compressLoader].toString().length/1000);
+			resultData[compressLoader] = "{width:" + videoW + ",height:" + videoH + ',data:"' + IMGdata.colors.join("") + " " + IMGdata.pixels + '"},';
+			kb += Math.round(resultData[compressLoader].length/1000);
+			compressLoader++;
+			
+			//print out the data
+			if(compressLoader >= resultData.length){
+				var resultsHTML = document.getElementById("results");
+				resultsHTML.style.background = "rgb(225, 225, 225)";
+				resultsHTML.style.width = "100%";
+				resultsHTML.style.height = "200px";
+				resultsHTML.style.overflow = "scroll";
+				resultsHTML.innerHTML = "[";
+				for(var i = 0; i < resultData.length; i++){
+					resultsHTML.innerHTML += resultData[i];
+				}
+				resultsHTML.innerHTML += "]";
+				
+				
+				compressed = true;
+			}
+		}
+
+		if(!video.paused){
+			//clear the old data
+			ctx.clearRect(0, 0, 400, 400);
+			
+			//draw the new data
+			ctx.drawImage(video, 200-videoW/2, 200-videoH/2, videoW, videoH);
+			
+			//get the new data
+			var img = ctx.getImageData(200-videoW/2, 200-videoH/2, videoW, videoH);
+			var data = img.data;
+			
+			for(var i = 0; i < data.length; i += 4){
+				data[i] = Math.round(data[i]/colorDecrease)*colorDecrease;
+				data[i+1] = Math.round(data[i+1]/colorDecrease)*colorDecrease;
+				data[i+2] = Math.round(data[i+2]/colorDecrease)*colorDecrease;
+			}
+			
+			ctx.putImageData(img, 200-videoW/2, 200-videoH/2);
+			
+			//add the data to the result data
+			if(compressLoader === -1){
+				resultData.push(data);
+				kb += Math.round(resultData[resultData.length-1].toString().length/1000);
+			}
+		}else if(resultData.length > 0){
+			if(compressLoader === -1){
+				compressLoader = 0;
+				compressed = false;
+			}
+		}
+	}
+	
+	//update the memory counter
+	if(resultData.length > 0){
+		document.getElementById("fileSize").innerHTML = "File Size: " + kb + "kb";
+		if(kb > 750){
+			document.getElementById("fileSize").style.color = "red";
+		}
+	}
+
+	frameCount++;
+};
+
+var run = setInterval(draw, intervalSpeed);
+
+
+</script>
+    </body>
+</html>
