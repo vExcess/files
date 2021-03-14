@@ -1,0 +1,345 @@
+<html>
+<head>
+	<title>Stereogram</title>
+	<script src="https://cdn.jsdelivr.net/npm/p5@1.2.0/lib/p5.js"></script>
+	<style>
+		body {
+			background-color: black;
+			overflow: hidden;
+		}
+		canvas {
+			position:absolute;
+		}
+	</style>
+</head>
+<body>
+<script>
+var SF;
+
+var clicked = false;
+var keys = [];
+function keyPressed(){
+  keys[keyCode] = true;
+}
+function keyReleased(){
+  keys[keyCode] = false;
+}
+
+var charKey = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=`~[]{};:./<>';
+var decompressBitmap;
+var drawBitmap;
+var sprite_player1 = 'vxsŢŢŢƊŢŢŶêêŶÖÖŢÖÖƭƭƭƭŶŶŶþþƞþþŶêÖƊêÖŶŎŎĦĦĦŶĒþƊþêƞêêƞƞƞĺĺĺĺĒĦŎŎŎĒĒĒŶŶŶŎĺĺŢĺŎŢĺĺƊĒþĺĦĦƊƊƊƞĒĒÖÖÖ!aÂb±c²aÁ,a°d¯e±f°e±aµb°g°b¯h²c°a¿,a¯i¯j¯f¯k¯l¯k¯f¯k¯f¯k¯e¯a³b¯g³b¯h°c¯m¯c¯m¯b¹n¯m±a¯,d¯o¯p¯l¯k¯q¯k±f¯k°e¯a±b¯g´b¯c²m°b¯n¯g·n¯c°m°,d¯p¯k±q¯k°f¯e³b°g³r¯g¯b¯s³g¯n°g·n¯c¯m±,i¯p¯k°l±k¯e¯m¯c°m¯t¯b¯g´b°u¯b²s¯g¯v¯g¸n¯a°m°,e¯o¯q¯k³e¯m¯h°m¯t¯u¯n¯g´w³u°g¯n¯g´n³a²,e¯o¯l¯k°q¯l¯e¯m¯h±c¯t¯x¯u¯n¯gµw±b¯g¯n°g²n°u³y¯z¯a°,e¯A¯k¯l¯k¯q¯e¯m¯c¯h±c¯B¯x¯y¯u¯n¯g·b¯g¯v¯C°v¯n°u±w±n¯m¯y°a¯,e¯A¯f°q¯f¯y¯C°h°c¯a°c¯y¯n¯u°n¯gµb¯g¯n¯w°s°u°w³n¯y±a¯,e¯D¯l¯f¯k¯f¯m¯E°h°c¯a²u¯n¯g¯uµs°n¯vµn´g¯y°a¯,e¯D¯j¯l°f¯m¯c²aµn¶s¯aÁ,a¯e°l°e¯aÖ,a±e¯d¯a×';
+var scene = 1;
+
+var player = {
+	x: 200,
+	y: 200,
+	w: 30,
+	h: 30,
+	speed: 3,
+	dirFacing: 1,
+};
+
+var obstacles = [];
+var NPCs = [];	
+var drawPlayer;
+var updatePlayer;
+var drawObstacles;
+var drawNPCs;
+var collideWithNPCs;
+var mainGame;
+var fightGame;
+
+function setup(){
+	var s = windowHeight;
+	if(s*1.5 > windowWidth){
+		s = windowWidth*(2/3);
+	}
+	var canvas = createCanvas(s*1.5, s);
+	canvas.position((windowWidth-width)/2, (windowHeight-height)/2);
+	SF = s/400;
+	frameRate(60);
+	angleMode(DEGREES);
+  
+	decompressBitmap = function(bitmap) {
+		function decompress(symbol) {
+			return symbol.charCodeAt() - 174;
+		}
+
+		bitmap = bitmap.split("!");
+		var colorData = bitmap[0];
+		var pixelData = bitmap[1].split(",");
+		var newBitmap = [
+			[color(0, 0, 0, 0)]
+		];
+
+		for (var i = 3; i < colorData.length; i += 3) {
+			var r = decompress(colorData.charAt(i)),
+				g = decompress(colorData.charAt(i + 1)),
+				b = decompress(colorData.charAt(i + 2));
+			newBitmap[0].push(color(r, g, b));
+		}
+
+		for (var k = 0; k < pixelData.length; k++) {
+			newBitmap.push("");
+			for (var i = 0; i < pixelData[k].length; i += 2) {
+				var repeatNTimes = decompress(pixelData[k].charAt(i + 1));
+				var symbol = pixelData[k].charAt(i);
+				for (var j = 0; j < repeatNTimes; j++) {
+					newBitmap[newBitmap.length - 1] += symbol;
+				}
+			}
+		}
+
+		return newBitmap;
+	};
+	
+	drawBitmap = function(bitmap, x, y, s) {
+		noStroke();
+		for (var row = 1; row < bitmap.length; row++) {
+			for (var indx = 0; indx < bitmap[row].length; indx++) {
+				fill(bitmap[0][charKey.indexOf(bitmap[row].charAt(indx))]);
+				rect(x + (row - 1) * s, y + indx * s, s, s);
+			}
+		}
+	};
+	
+	sprite_player1 = decompressBitmap(sprite_player1);
+	
+	function rect_rectCollide(x1, y1, w1, h1, x2, y2, w2, h2) {
+		return !(x1 + w1 < x2 || x1 > x2 + w2 || y1 + h1 < y2 || y1 > y2 + h2);
+	}
+
+	function distBetween(num1, num2) {
+		return abs(num1 - num2);
+	}
+	
+	for (var i = 0; i < 150; i++) {
+		obstacles.push({
+			x: round(random(-1000, 1000)),
+			y: round(random(-1000, 1000)),
+			w: round(random(25, 75)),
+			h: round(random(25, 75)),
+		});
+	}
+	
+	for (var i = 0; i < 5; i++) {
+		NPCs.push({
+			x: round(random(-1000, 1000)),
+			y: round(random(-1000, 1000)),
+			w: round(random(25, 75)),
+			h: round(random(25, 75)),
+		});
+	}
+	
+	drawPlayer = function() {
+		noStroke();
+		fill(0, 0, 255);
+		rect(600*SF / 2 - player.w / 2, 400*SF / 2 - player.h / 2 + 45, player.w, player.h);
+
+		if (player.dirFacing === 0) {
+			push();
+			translate(600*SF / 2 - player.w / 2 - 2 + 34, 400*SF / 2 - player.h / 2 - 50);
+			scale(-1, 1);
+			drawBitmap(sprite_player1, 0, 0, 2.5);
+			pop();
+		} else if (player.dirFacing === 1) {
+			drawBitmap(sprite_player1, 600*SF / 2 - player.w / 2 - 2, 400*SF / 2 - player.h / 2 - 50, 2.5);
+		}
+
+	};
+	updatePlayer = function() {
+		//move x
+		if (keys[LEFT_ARROW] || keys[65]) {
+			player.x -= player.speed;
+			player.dirFacing = 0;
+		}
+		if (keys[RIGHT_ARROW] || keys[68]) {
+			player.x += player.speed;
+			player.dirFacing = 1;
+		}
+
+		//x collisions
+		for (var i = 0; i < obstacles.length; i++) {
+			var obj = obstacles[i];
+
+			if (rect_rectCollide(obj.x, obj.y, 1, obj.h, player.x, player.y, player.w, player.h)) {
+				player.x += obj.x - (player.x + player.w) - 1;
+			}
+			if (rect_rectCollide(obj.x + obj.w - 1, obj.y, 1, obj.h, player.x, player.y, player.w, player.h)) {
+				player.x += (obj.x + obj.w) - player.x + 1;
+			}
+
+		}
+
+		//move y
+		if (keys[UP_ARROW] || keys[87]) {
+			player.y -= player.speed;
+		}
+		if (keys[DOWN_ARROW] || keys[83]) {
+			player.y += player.speed;
+		}
+
+		//y collisions
+		for (var i = 0; i < obstacles.length; i++) {
+			var obj = obstacles[i];
+
+			if (rect_rectCollide(obj.x, obj.y, obj.w, 1, player.x, player.y, player.w, player.h)) {
+				player.y += obj.y - (player.y + player.h) - 1;
+			}
+			if (rect_rectCollide(obj.x, obj.y + obj.h - 1, obj.w, 1, player.x, player.y, player.w, player.h)) {
+				player.y += (obj.y + obj.h) - player.y + 1;
+			}
+		}
+	};
+	
+	drawObstacles = function() {
+		push();
+		translate(600*SF / 2 - player.x - player.w / 2, 400*SF / 2 - player.y - player.h / 2 + 45);
+
+		noStroke();
+		fill(0, 0, 0);
+		for (var i = 0; i < obstacles.length; i++) {
+			var obj = obstacles[i];
+
+			rect(obj.x, obj.y, obj.w, obj.h);
+		}
+		pop();
+	};
+
+	drawNPCs = function() {
+		push();
+		translate(600*SF / 2 - player.x - player.w / 2, 400*SF / 2 - player.y - player.h / 2 + 45);
+
+		noStroke();
+		fill(230, 223, 147);
+		for (var i = 0; i < NPCs.length; i++) {
+			var NPC = NPCs[i];
+
+			rect(NPC.x, NPC.y, NPC.w, NPC.h);
+		}
+		pop();
+	};
+	
+	collideWithNPCs = function() {
+		noStroke();
+		for (var i = 0; i < NPCs.length; i++) {
+			var NPC = NPCs[i];
+
+			if (rect_rectCollide(NPC.x, NPC.y, NPC.w, NPC.h, player.x, player.y, player.w, player.h)) {
+				fill(0, 0, 0);
+				rect(0, 400*SF - 100, 600*SF, 100);
+
+				fill(230, 223, 147);
+				rect(13, 400*SF - 90, 80, 80);
+
+				textFont("sans-serif", 16);
+				fill(255, 255, 255);
+				text("Hello There, I am a non player character\n(Click to battle with me)", 110, 400*SF - 70);
+
+				if (clicked) {
+					clicked = false;
+					scene = 2;
+				}
+			}
+		}
+	};
+	
+	mainGame = function() {
+		background(34, 171, 0);
+
+		updatePlayer();
+
+		drawObstacles();
+
+		drawNPCs();
+
+		drawPlayer();
+
+		collideWithNPCs();
+	};
+
+	fightGame = function() {
+		background(56, 234, 240);
+		push();
+			scale(SF);
+			
+			noStroke();
+			fill(0, 0, 0);
+			rect(25, 25, 150, 25, 10);
+			rect(425, 25, 150, 25, 10);
+
+			fill(255, 111, 0);
+			rect(27, 27, 146, 21, 5);
+			rect(427, 27, 146, 21, 5);
+
+			fill(0, 0, 0);
+			rect(29, 29, 142, 17, 5);
+			rect(429, 29, 142, 17, 5);
+
+			fill(0, 200, 0);
+			rect(30, 30, 140, 10, 2);
+			rect(430, 30, 140, 10, 2);
+
+			fill(0, 100, 200);
+			rect(30, 39, 140, 6, 2);
+			rect(430, 39, 140, 6, 2);
+
+			fill(0, 0, 0);
+			rect(30, 38, 140, 2);
+			rect(430, 38, 140, 2);
+
+			fill(0, 0, 0, 150);
+			quad(27, 48, 30, 75, 150, 75, 170, 50);
+			quad(427, 48, 430, 75, 550, 75, 570, 50);
+
+			fill(255, 255, 255);
+			textFont("cursive", 16);
+			text("Level", 38, 67);
+			text("2", 136, 67);
+
+			text("Level", 438, 67);
+			text("1", 536, 67);
+
+			strokeWeight(3);
+			stroke(255, 213, 0);
+			fill(0, 0, 0, 175);
+			rect(150, 325, 300, 50, 10);
+
+			fill(255, 255, 255);
+			text("Click To Exit", 247, 356);
+			
+		pop();
+		
+		if (clicked) {
+			clicked = false;
+			scene = 1;
+		}
+
+	};
+
+}
+
+function draw(){
+	if (scene === 1) {
+        mainGame();
+    } else if (scene === 2) {
+        fightGame();
+    }
+	
+	fill(255, 255, 255);
+	noStroke();
+	textSize(20);
+	text("FPS: " + round(frameRate()), 10, 25);
+	text("Canvas Scale Factor: " + SF, 10, 50);
+	
+    clicked = false;
+}
+
+function mouseReleased() {
+    clicked = true;
+};
+
+</script>
+</body>
+</html>
