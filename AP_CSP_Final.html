@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Platformer Physics</title>
+    <style>
+      body {
+        padding: 15px;
+        font-family: sans-serif;
+        font-size: 15px;
+      }
+      #title {
+        text-align: center;
+      }
+      #exampleWrapper {
+        padding: 0px;
+        margin: auto;
+        display: block;
+        width: 400px;
+        height: 400px;
+      }
+    </style>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0/themes/prism-okaidia.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/vExcess/library_files@main/prism.js"></script>
+  </head>
+  <body>
+    
+    <h1 id="title">Platformer Physics</h1>
+    
+    <p>
+      I am going to attempt to show you how to make some basic, but effective platformer physics. My presentation will be using Javascript with the Processing.js library since Javascript is my favorite language and I am most skilled with it. I hope to explain everything clearly so that you could potentially recreate it in another language.
+      <br><br>
+      This presentation will cover:
+    </p>
+    <ul>
+      <li>Player Movement with velocity (including jumping)</li>
+      <li>Player-Block collision detection (w/ unrotated blocks)</li>
+      <li>Player-Block collision correction (w/ rigid blocks)</li>
+    </ul>
+    
+    <br>
+    
+    <h2>Create Player</h2>
+    <p>Make an object for the player. To do this in Python you would create a class, and then use that class to contruct the object. Unlike in Python, in Javascript you put semicolons at the end of a command. Just like how you put a period at the end of a sentence in English.</p>
+<pre><code class="language-javascript">var player = {
+  x: 125,
+  y: 315,
+  xVel: 0,
+  yVel: 0,
+  s: playerSize,
+  canJump: false
+};
+</code></pre>
+
+    <br>
+    
+    <h2>Create Keys System</h2>
+    <p>Create an array that will store what keys are currently being pressed. When a key is pressed or stops being pressed, change the array at index keyCode to the current state of the key. This is really easy using the Processing.js library. KeyCode is the number joined to a key on your keyboard. You find a key's keyCode using an <a target="_blank" href="http://www.asciitable.com">ASCII Table</a></p>
+<pre><code class="language-javascript">var keys = [];
+keyPressed = function() {
+  keys[keyCode] = true;
+};
+keyReleased = function() {
+  keys[keyCode] = false;
+};
+</code></pre>
+
+    <br>
+
+    <h2>Edit Player Velocities</h2>
+    <p>To better simulate the real world and to make the game smooth you edit the velocities of the player instead of directly changing its x and y values. This is done with a few simple if statements. LEFT, RIGHT, and UP are variables predefined by the Processing.js library. "&&" in JS is equivelant to "and" in Python. Also, "variable += 1;" is the equivilant to saying "variable = variable + 1" in Python</p>
+<pre><code class="language-javascript">if (keys[LEFT]) {
+  player.xVel -= 1;
+}
+if (keys[RIGHT]) {
+  player.xVel += 1;
+}
+if (keys[UP] && player.canJump && player.yVel > -0.5 && player.yVel &lt; 0.5) {
+  player.yVel = -7.5;
+  player.canJump = false;
+}
+</code></pre>
+
+    <br>
+
+    <h2>Add Friction And Gravity Forces To The Player</h2>
+    <p>Now you can make your player move, but the problem is that he won't stop moving. Simply add air friction to the x velocity if its negative, or subract air friction if its positive. Then for the y velocity you just need to add gravity.</p>
+<pre><code class="language-javascript">var airFriction = 0.4;
+if (player.xVel &lt; 0) {
+  player.xVel += airFriction;
+}
+if (player.xVel &gt; 0) {
+  player.xVel -= airFriction;
+}
+
+var gravity = 0.3;
+player.yVel += gravity;
+</code></pre>
+
+    <br>
+
+    <h2>Quickly Fix Infinite Speed</h2>
+    <p>The player can keep going faster and faster. Also it will never fully stop moving. To fix, set the x velocity to 0 if its really close to 0. And constain the x velocity. constrain() is a Processing.js function, but you could easily just use two if statements.</p>
+<pre><code class="language-javascript">if (player.xVel > -0.5 && player.xVel &lt; 0.5) {
+  player.xVel = 0;
+}
+player.xVel = constrain(player.xVel, -5, 5);
+</code></pre>
+
+    <br>
+
+    <h2>Make Collision Detection Function</h2>
+    <p>There are tons of way to detect if two rectangles are colliding with each other. The method I use checks for any of the 4 conditions that would make the rectangles not touching, and then I reverse the output. I like this method because its really efficient and simple. "||" in JS is the same as "or" in Python. And "!" in JS is the same as "not" in Python.</p>
+<pre><code class="language-javascript">function rect_rectCollide(x1, y1, w1, h1, x2, y2, w2, h2) {
+  return !(x1 + w1 &lt; x2 || x1 &gt; x2 + w2 || y1 + h1 &lt; y2 || y1 &gt; y2 + h2);
+}
+</code></pre>
+
+    <br>
+
+    <h2>Make Map</h2>
+    <p>This isn't part of the phyics, but I made a map to run the collisions on using a bitmap aka an array of arrays using 0 to represent air and 1 to represent solid block.</p>
+<pre><code class="language-javascript">var gameArray = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,0,0,1,0,0,0,0,0,0,0,0,1],
+  [1,1,1,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,0,0,0,1,1,0,0,0,1,0,1],
+  [1,0,0,0,0,1,0,0,0,0,0,1,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,1,0,0,1,1,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+</code></pre>
+
+    <br>
+
+    <h2>Quick Tangent To Clarify Some Things About JS</h2>
+    <p>In case it wasn't clear to declare a variable in JS you type var and then the variable name and then assign it a value. Once a variable is declared you don't need to type var in order to give the variable a new value.</p>
+<pre><code class="language-javascript">// follow the format: var VARNAME = VALUE;
+// number
+var thing1 = 1;
+thing1 = 3;
+// array (aka list)
+var thing2 = [1, 2, 3, 4];
+thing2 = [5, 6, 7, 8];
+// string
+var thing3 = "Hello World!";
+thing3 = "Good Bye World";
+// boolean
+var thing4 = true;
+thing4 = false;
+</code></pre>
+<pre><code class="language-javascript">// to create a loop in JS follow this format
+for (variable; repeatUntilCondition; increment) {
+  // do stuff
+}
+</code></pre>
+<p>This Javascript loop is the same as</p>
+<pre><code class="language-javascript">for (var i = 0; i &lt; 10; i += 1) {
+  print(i);
+}
+</code></pre>
+<p>this Python loop</p>
+<pre><code class="language-javascript">for x in range(10):
+  print(x)
+</code></pre>
+<p>Note: there are a few different ways to increment a variable in Javascript</p>
+<pre><code class="language-javascript">// these all do the exact same thing
+// the long way
+i = i + 1;
+// the most common way to increment a variable by any number
+i += 1;
+// this is shorthand for incrementing a variable by 1. This only works for increments by 1
+i++;
+
+// likewise these all do the same thing
+i = i - 1;
+i -= 1;
+i--;
+</code></pre>
+
+    <br>
+
+    <h2>Run Collisions</h2>
+    <p>This is the main part. It's also the most complicated part so I will explain it line by line with comments in the code. You make a comment in JS using "//" just like how you use "#" in Python. Basically the idea was to update the x position, check for collisions, if a collision is detected undo the move. Then update the y position and check for for collisions, if a collisions is detected then update the y position. That was really easy and worked pretty well, but it didn't give pixel perfect collisions that I wanted. So I modifed the code a little. Instead of just checking for a collision with a block, I would check for a collision on the left side of the block and then if a collision was detected I pushed the player just barely to the left of the block. Then I did the same for the right side, top and bottom.</p>
+<pre><code class="language-javascript">// update the player's x position
+player.x += player.xVel;
+
+// x collisions
+// loop through each row in the game bitmap
+for (var x = 0; x &lt; gameArray.length; x++) {
+  // loop through each index in the row in the game bitmap
+  for (var y = 0; y &lt; gameArray[x].length; y++) {
+    // if the index is a solid block
+    if (gameArray[x][y] > 0) {
+      // store the x, y, width, and height of the block in an array for easy access
+      var obj = [y * blockSize, x * blockSize, blockSize, blockSize];
+      // check for a collision on the left side of the block
+      if (rect_rectCollide(obj[0], obj[1], 1, obj[3], player.x, player.y, player.s, player.s)) {
+        // move the player by the difference between block x and player x + player size minus 1
+        player.x += obj[0] - (player.x + player.s) - 1;
+      }
+      // check for a collision on the right side of the block
+      if (rect_rectCollide(obj[0] + obj[2] - 1, obj[1], 1, obj[3], player.x, player.y, player.s, player.s)) {
+        // move the player by the difference between block x + block width and player x plus 1
+        player.x += (obj[0] + obj[2]) - player.x + 1;
+      }
+    }
+  }
+}
+
+// update the player's y position
+player.y += player.yVel;
+
+//y collisions
+// loop through each row in the game bitmap
+for (var x = 0; x &lt; gameArray.length; x++) {
+  // loop through each index in the row in the game bitmap
+  for (var y = 0; y &lt; gameArray[x].length; y++) {
+    // if the index is a solid block
+    if (gameArray[x][y] > 0) {
+      // store the x, y, width, and height of the block in an array for easy access
+      var obj = [y * blockSize, x * blockSize, blockSize, blockSize];
+      // check for a collision on the top of the block
+      if (rect_rectCollide(obj[0], obj[1], obj[2], 1, player.x, player.y, player.s, player.s)) {
+        // move the player by the difference between block y and player y + player size minus 1
+        player.y += obj[1] - (player.y + player.s) - 1;
+        // stop the player from continuing to move downwards
+        player.yVel = 0;
+        // make the player able to jump again
+        player.canJump = true;
+      }
+      // check for a collision on the bottom of the block
+      if (rect_rectCollide(obj[0], obj[1] + obj[3] - 1, obj[2], 1, player.x, player.y, player.s, player.s)) {
+        // move the player by the difference between block y + block height and player y plus 1
+        player.y += (obj[1] + obj[3]) - player.y + 1;
+        // stop the player from continuing to move upwards
+        player.yVel = 0;
+      }
+    }
+  }
+}
+</code></pre>
+
+    <br>
+
+    <h2>Finish</h2>
+    <p>So I easily drew it all out with a few lines of code using the Processing.js library. BTW I suggest using p5.js instead of Processing.js because Processing.js is obsolete. I just used Processing.js because it was easiest to embed into this page. I haven't used any Python drawing libraries, but I bet you could find one.</p>
+    
+    <div id="exampleWrapper">
+      <script type src="https://www.khanacademy.org/computer-programming/2d-game-physics-example/5634190605238272/embed.js?editor=no&embed=yes"></script>
+    </div>
+    <a target="_blank" href="https://www.khanacademy.org/computer-programming/2d-game-physics-example/5634190605238272">Full Code Here</a>
+    
+    <br>
+
+    <h2>3D Collisions</h2>
+    <p>To do the same thing in 3D instead of 2D just add a z value. Unfortunately I don't have a 3D example to show you.</p>
+    
+  </body>
+</html>
