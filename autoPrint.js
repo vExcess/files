@@ -1,0 +1,1 @@
+setInterval(print, 5);
