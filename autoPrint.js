@@ -1,1 +1,0 @@
-setInterval(print, 5);
