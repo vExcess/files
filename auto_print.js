@@ -1,2 +1,1 @@
-// setInterval(print, 5);
-alert("test");
+setInterval(print, 5);
