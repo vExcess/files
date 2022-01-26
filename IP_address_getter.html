@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<!--
+
+Hide this program from the hotlist
+// /cs/pro/5733417664643072
+
+Be careful where you go, because your IP can be easily grabbed if you aren't smart or even if you are smart. This program won't do anything with your IP, don't worry. Most KA programs can't do anything at all.
+
+That being said, some of them can. If you use Chrome, FireFox, Brave, Opera, or possibly other browsers, there's a webRTC leak which might just affect you. This program can get IP from most browsers, but if you use a browser with the leak, your IP can actually be sent to another server as well. So while this program does nothing but show your IP to you, other programs could show your IP to other people. 
+
+Make sure to avoid any suspicious programs if you use an affect browser or install a VPN to disguise your IP from them. Outside KA, avoid any suspicious websites reagrdless of your browser unless you have a VPN. 
+
+
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Saving For Future Reference</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>IP Address Getter</h1>
+  
+  <button id="btn">Fetch My IP</button>
+  
+  <p id="result">Unlike the original this program will not access your IP unless you give it permission to by clicking the button above. Even then it will not do anything with your IP address other that display it on the screen for you to see.</p>
+  
+  <script type>
+function getIPs(d) {
+  function is_ipv4(d) {
+    return regex_v4.test(d);
+  }
+  
+  function is_ipv6(d) {
+    return regex_v6.test(d);
+  }
+  
+  var regex_v4 = /((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])/;
+  var regex_v6 = /((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))/;
+  var ip_regex_array = [regex_v6, regex_v4];
+  
+  function peer(d) {
+    var e;
+    var t = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+  
+    function n() {
+      (e = new t({
+        iceServers: [{
+          urls: "stun:stun.l.google.com:19302"
+        }]
+      })).onicecandidate = (d => f(d)), e.createDataChannel("fake_data_channel");
+    }
+  
+    function a() {
+      return e.createOffer().then(d => e.setLocalDescription(d));
+    }
+  
+    function f(e) {
+      e && e.candidate && e.candidate.candidate && d(e && e.candidate && e.candidate.candidate);
+    }
+    return {
+      start: function() {
+        n(),
+          a();
+      },
+      stop: function() {
+        if (e) {
+          try {
+            e.close();
+          } finally {
+            e.onicecandidate = (() => {}), e = null;
+          }
+        }
+      },
+      createConnection: n,
+      createStunRequest: a,
+      handleCandidates: f
+    };
+  }
+  
+  function publicIPs(d) {
+    if (d && d < 100) {
+      throw new Error("Custom timeout cannot be under 100 milliseconds.");
+    }
+    var e = [];
+    var t = peer(function(d) {
+      var t = [];
+      for (let e of ip_regex_array) {
+        let n = [];
+        let a = e.exec(d);
+        if (a) {
+          for (let d = 0; d < a.length; d++) {
+            (is_ipv4(a[d]) || is_ipv6(a[d])) && n.push(a[d]);
+          }
+          t.push(n);
+        }
+      }!
+      function(d) {
+        e.includes(d) || e.push(n(d.flat(1 / 0)));
+      }
+      (t.flat(1 / 0));
+    });
+  
+    function n(d) {
+      return Array.from(new Set(d));
+    }
+    return new Promise(function(a, f) {
+      t.start(),
+        setTimeout(() => {
+          e && e !== [] ? a(n(e.flat(1 / 0))) : f("No IP addresses were found."),
+            t.stop();
+        }, d || 500);
+    });
+  }
+  
+  function getIPTypes(d) {
+    return new Promise(function(e, t) {
+      let n = [];
+      publicIPs(d).then(d => {
+        d.forEach(d => {
+          d.match(/^(192\.168\.|169\.254\.|10\.|172\.(1[6-9]|2\d|3[01]))/) ? n.push({
+            ip: d,
+            type: "private",
+            IPv4: !0
+          }) : d.match(/((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))/) ? n.push({
+            ip: d,
+            type: "IPv6",
+            IPv4: !1
+          }) : n.push({
+            ip: d,
+            type: "public",
+            IPv4: !0
+          });
+        }), e(n);
+      }).catch(t);
+    });
+  }
+  
+  function getIPv4(d) {
+    return getIPTypes(d).then(d => {
+      const e = d.filter(d => d.IPv4);
+      for (let d = 0; d < e.length; d++) {
+        e[d] = e[d].ip;
+      }
+      return e || "";
+    });
+  }
+  
+  function getIPv6(d) {
+    return getIPTypes(d).then(d => {
+      const e = d.filter(d => "IPv6" === d.type);
+      for (let d = 0; d < e.length; d++) {
+        e[d] = e[d].ip;
+      }
+      return e ? e.ip : "";
+    });
+  }
+  
+  return Object.assign(publicIPs(d), {
+    types: getIPTypes,
+    public: publicIPs,
+    IPv4: getIPv4,
+    IPv6: getIPv6
+  });
+}
+
+var result = document.getElementById("result");
+
+document.getElementById("btn").onclick = function () {
+  getIPs().then(data => {
+    result.innerHTML = `If you're not using a VPN, your IP is ${data} and NOT safe. It's extremely easy to get your IP so you need to pay attention to where you go. Even KA programs might be able to grab your IP. Think about getting a VPN or installing services to hide your IP. `;
+  }).catch(err => {
+    result.innerHTML = `Your IP is safe...er. It can still be grabbed by many sites if you don't use a VPN or other IP hiding tool. `;
+  });
+}
+
+  </script>
+  
+  <script></script>
+</body>
+</html>
