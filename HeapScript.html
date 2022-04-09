@@ -268,6 +268,9 @@ function getValue (val, vars, stack) {
   if (val.slice(0, 5) === "read(" && val.charAt(val.length - 1) === ")") {
     return Number(stack[val.slice(5, val.length - 1)]);
   }
+  if (PROGRAM.vars[val] && PROGRAM.vars[val].type === "fxn") {
+    return PROGRAM.vars[val];
+  }
   var newval = Number(val);
   if (Number.isNaN(newval)) {
     newval = vars[val] === undefined ? NaN : Number(vars[val]);
