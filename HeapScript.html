@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html>
+<!--
+  
+  HeapScript
+    An assembly like scripting language written by VEXCESS @VXS
+    
+  A scripting language that is like assembly you say?
+    yes, basically it's like web assembly, but dynamically typed and doesn't crash after encountering a minor error. It's kinda like Web Assembly and Javascript had a baby together.
+  
+  why?
+    because why not
+  
+-->
+<head>
+  <meta charset="utf-8">
+  <title>HeapScript</title>
+  <style>
+    body {
+      font-family: Consolas, monospace;
+      font-size: 16px;
+      overflow: hidden;
+    }
+  
+    #code-editor {
+      width: 99%;
+      height: 300px;
+    }
+    
+    #console {
+      width: 99%;
+      height: 225px;
+      border: 1px solid black;
+      overflow: auto;
+      font-size: 14px;
+    }
+    
+    .log-item {
+      padding: 5px;
+      border-bottom: 1px solid gray;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- An extremely simple code editor with my demo code preloaded -->
+  <textarea id="code-editor" spellcheck="false">
+// create a function
+function sumTimesTen(a, b) {
+  // creates a local variable ten with value 10
+  local ten 10;
+  
+  write a; // writes the value of a to the stack
+  write b; // writes the value of b to the stack
+  add; // add the last two numbers in the stack together
+  
+  write ten; // writes 10 to the stack
+  mult; // multiply the last two numbers in the stack together
+  
+  // this will log an error because there is only 1 value in the stack
+  sub;
+  
+  // print the vars and function's stack to the console
+  debug vars; // {"a":5,"b":3,"ten":"10"}
+  debug stack; // 80
+  
+  // appends the function's stack to the global stack
+  return;
+}
+
+global a 123; // declaring a global variable a
+
+// calls the sumTimesTen function
+sumTimesTen(5.334, 3.865); // returns (5 + 3) * 10
+
+// demonstrating that the global a value is unaffected by the local variable a
+println a; // 123
+
+// this will return an error because test2 is undefined
+test2();
+
+// create a global variable, something, with value 10000
+global something 10000;
+write something; // writes something to the global stack
+write something; // writes something to the global stack again
+
+global anotherthing something; // create another global variable, anotherthing, with the same value as something
+global anotherthing read(0); // redefine anotherthing to be the first value in the
+stack
+
+pop 0; // remove the first number from the stack
+pop; // remove the last number from the stack
+
+write anotherthing; // writes anotherthing to the stack
+sin; // takes sine of last number in the stack
+write 100; // write 100 to the stack
+mult; // multiply the last two numbers in the stack
+round; // rounds the last number in the stack
+
+// prints the global stack to the console
+println stack;
+
+pop 0 1000; // clear 1000 elements of the stack starting from 0
+  </textarea>
+  
+  <br>
+  
+  <!-- Run Button -->
+  <button onclick="runProgram()" style="margin-top: 4px;">Run Program</button>
+  
+  <br><br>
+  
+  <!-- Console -->
+  <div id="console"></div>
+  
+  <script>
+// store the console element
+var consoleEl = document.getElementById("console");
+
+// console functions
+function println (val, scope) {
+  var el = document.createElement("div");
+  el.className = "log-item";
+  el.innerText = val;
+  
+  consoleEl.appendChild(el);
+}
+
+function debug (val, scope) {
+  var el = document.createElement("div");
+  el.className = "log-item";
+  el.style.backgroundColor = "rgb(255, 251, 229)";
+  el.style.color = "rgb(92, 60, 0)";
+  el.innerText = val;
+  
+  var locEl = document.createElement("span");
+  locEl.style.color = "rgb(0, 105, 185)";
+  locEl.innerText = "\n@" + scope;
+  el.appendChild(locEl);
+  
+  consoleEl.appendChild(el);
+}
+
+function throwError (val, scope, code) {
+  var el = document.createElement("div");
+  el.className = "log-item";
+  el.style.backgroundColor = "rgb(255, 240, 240)";
+  el.style.color = "rgb(196, 43, 28)";
+  el.innerText = val;
+  
+  var locEl = document.createElement("span");
+  locEl.style.color = "rgb(0, 105, 185)";
+  locEl.innerText = "\n@" + code + ";\n@" + scope;
+  el.appendChild(locEl);
+  
+  consoleEl.appendChild(el);
+}
+
+
+// the program's runtime environment
+var PROGRAM, programCode;
+
+function trimWhitespace () {
+  // trim the code to ignore whitespace
+  programCode = programCode.split("\n");
+  for (var i = 0; i < programCode.length; i++) {
+    programCode[i] = programCode[i].trim();
+    
+    // so the whole thing doesn't turn into a comment
+    if (programCode[i].slice(0, 2) === "//") {
+      programCode[i] += ";";
+    }
+  }
+  
+  // join the code back together using ; as seperators
+  programCode = programCode.join(";").replaceAll(";;", ";");
+}
+
+function hoistFunctions () {
+  // hoist functions
+  var idx = 0;
+  var currTok = "";
+  while (idx < programCode.length) {
+    currTok += programCode[idx];
+    
+    if (programCode[idx] === ";") {
+      currTok = "";
+    }
+    
+    if (currTok === "function ") {
+      var startIdx = idx;
+      var fxnCode = "";
+      var fxnParams = "";
+      var fxnName = "";
+      
+      // get function name
+      idx++;
+      while (programCode[idx] !== "(" && idx < programCode.length) {
+        fxnName += programCode[idx];
+        idx++;
+      }
+      
+      // get function parameters
+      while (programCode[idx] !== ")" && idx < programCode.length) {
+        fxnParams += programCode[idx];
+        idx++;
+      }
+      
+      fxnParams = fxnParams.slice(1, fxnParams.length).split(",");
+      for (var i = 0; i < fxnParams.length; i++) {
+        fxnParams[i] = fxnParams[i].trim();
+      }
+      
+      // get function code
+      var curlyBracketDepth = 0;
+      while (programCode[idx] !== "{" && idx < programCode.length) {
+        idx++;
+      }
+      if (programCode[idx] === "{") {
+        curlyBracketDepth++;
+      }
+      
+      idx++;
+      while (curlyBracketDepth >= 0 && idx < programCode.length) {
+        if (programCode[idx] === "}") {
+          curlyBracketDepth--;
+        } else {
+          fxnCode += programCode[idx];
+        }
+        idx++;
+      }
+  
+      // store the function
+      PROGRAM.vars[fxnName.trim()] = {
+        type: "fxn",
+        params: fxnParams,
+        vars: {},
+        stack: [],
+        code: fxnCode
+      };
+      
+      // empty the token
+      currTok = "";
+      
+      // remove function from source code after hoisting it
+      programCode = programCode.slice(0, startIdx - 8) + programCode.slice(idx + 1, programCode.length);
+    }
+  
+    idx++;
+  }
+}
+
+function popStack (stack, start, amt) {
+  if (start === undefined) {
+    start = stack.length - 1;
+  }
+  amt = amt || 1;
+  while (amt) {
+    stack.splice(start, 1);
+    amt--;
+  }
+}
+
+function getValue (val, vars, stack) {
+  if (val === undefined) {
+    return undefined;
+  }
+  if (val.slice(0, 5) === "read(" && val.charAt(val.length - 1) === ")") {
+    return Number(stack[val.slice(5, val.length - 1)]);
+  }
+  var newval = Number(val);
+  if (Number.isNaN(newval)) {
+    newval = vars[val] === undefined ? NaN : Number(vars[val]);
+  }
+  if (Number.isNaN(newval)) {
+    newval = PROGRAM.vars[val] === undefined ? NaN : Number(PROGRAM.vars[val]);
+  }
+  return Number.isNaN(newval) ? undefined : newval;
+}
+
+function interpret (code, scope, vars, stack) {
+  // create an array of the lines of code
+  code = code.split(";");
+  
+  // and we go an interpret each line of code
+  for (var line = 0; line < code.length; line++) {
+    var tokens = code[line].split(" ");
+    
+    // ignore comments
+    if (code[line].slice(0, 2) === "//") {
+      continue;
+    }
+    
+    // create global variable
+    if (tokens[0] === "global") {
+      PROGRAM.vars[tokens[1]] = getValue(tokens[2], vars, stack);
+      continue;
+    }
+    
+    // create local variable
+    if (tokens[0] === "local") {
+      vars[tokens[1]] = getValue(tokens[2], vars, stack);
+      continue;
+    }
+    
+    // add a number to the stack
+    if (tokens[0] === "write") {
+      var val = getValue(tokens[1], vars, stack);
+      
+      stack.push(val);
+      
+      if (val === undefined) {
+        throwError(tokens[1] + " is undefined", scope, code[line]);
+      }
+      continue;
+    }
+    
+    // add a number to the stack
+    if (tokens[0] === "pop") {
+      popStack(stack, getValue(tokens[1], vars, stack), getValue(tokens[2], vars, stack));
+      continue;
+    }
+    
+    // add the two previous numbers in the stack
+    if (tokens[0] === "add") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(var1 + var2);
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // substract the two previous numbers in the stack
+    if (tokens[0] === "sub") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(var1 - var2);
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // multiply the two previous numbers in the stack
+    if (tokens[0] === "mult") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(var1 * var2);
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // divide the two previous numbers in the stack
+    if (tokens[0] === "div") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(var1 / var2);
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // raise the 2nd to last number to the power of the last
+    if (tokens[0] === "pow") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(Math.pow(var1, var2));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take min of previous two numbers
+    if (tokens[0] === "min") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(Math.min(var1, var2));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take max of previous two numbers
+    if (tokens[0] === "max") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(Math.max(var1, var2));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take absolute value of last element in stack and append it
+    if (tokens[0] === "abs") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.abs(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take ceil value of last element in stack and append it
+    if (tokens[0] === "ceil") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.ceil(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take round value of last element in stack and append it
+    if (tokens[0] === "round") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.round(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take floor value of last element in stack and append it
+    if (tokens[0] === "floor") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.floor(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take sin value of last element in stack and append it
+    if (tokens[0] === "sin") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.sin(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take cos value of last element in stack and append it
+    if (tokens[0] === "cos") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.cos(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take tan value of last element in stack and append it
+    if (tokens[0] === "tan") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.tan(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // take log value of last element in stack and append it
+    if (tokens[0] === "log") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.log(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // square the last element in stack and append it
+    if (tokens[0] === "sq") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.sq(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // square root the last element in stack and append it
+    if (tokens[0] === "sqrt") {
+      if (stack.length >= 1) {
+        var var1 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 1, 1);
+        
+        stack.push(Math.sqrt(var1));
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
+    // run a function
+    if (tokens[0].includes("(") && tokens[tokens.length - 1].includes(")")) {
+      var openIdx = tokens[0].indexOf("(");
+      var fxnName = tokens[0].slice(0, openIdx);
+      var fxn = vars[fxnName] || PROGRAM.vars[fxnName];
+      
+      if (fxn) {
+        var params = "";
+        
+        var idx = openIdx + 1;
+        while (code[line][idx] !== ")" && idx < code[line].length) {
+          params += code[line][idx];
+          idx++;
+        }
+        
+        params = params.split(",");
+        
+        for (var i = 0; i < params.length; i++) {
+          fxn.vars[fxn.params[i]] = getValue(params[i].trim(), vars, stack);
+        }
+      
+        var fxnResult = interpret(fxn.code, fxnName, fxn.vars, fxn.stack);
+        
+        for (var i = 0; i < fxnResult.length; i++) {
+          stack.push(fxnResult[i]);
+        }
+        
+        // reset local vars
+        fxn.vars = [];
+        
+        // reset local stack
+        fxn.stack = [];
+      } else {
+        throwError(fxnName + " is undefined", scope, code[line]);
+      }
+      continue;
+    }
+    
+    if (tokens[0] === "debug") {
+      if (tokens[1]) {
+        switch (tokens[1]) {
+          case "vars":
+            debug(JSON.stringify(vars), scope);
+          break;
+          case "stack":
+            debug(stack, scope);
+          break;
+          default:
+            debug(getValue(tokens[1], vars, stack), scope);
+          break;
+        }
+      } else {
+        throwError("No input to debug statement", scope, code[line]);
+      }
+      continue;
+    }
+    
+    if (tokens[0] === "println") {
+      if (tokens[1]) {
+        switch (tokens[1]) {
+          case "vars":
+            println(JSON.stringify(vars));
+          break;
+          case "stack":
+            println(stack);
+          break;
+          default:
+            println(getValue(tokens[1], vars, stack));
+          break;
+        }
+      } else {
+        throwError("No input to println statement", scope, code[line]);
+      }
+      continue;
+    }
+    
+    if (tokens[0] === "return") {
+      return stack;
+    }
+  
+  }
+  
+}
+
+function runProgram () {
+  consoleEl.innerHTML = "";
+  
+  programCode = document.getElementById("code-editor").value;
+  
+  PROGRAM = {
+    scope: "main",
+    vars: {},
+    stack: []
+  };
+  
+  trimWhitespace();
+  
+  hoistFunctions();
+  
+  interpret(programCode, PROGRAM.scope, PROGRAM.vars, PROGRAM.stack);
+}
+runProgram();
+
+
+  </script>
+
+</body>
+</html>
+
