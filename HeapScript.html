@@ -426,6 +426,21 @@ function interpret (code, scope, vars, stack) {
       continue;
     }
     
+    // take ternary operation of previous two numbers
+    if (tokens[0] === "mux") {
+      if (stack.length >= 2) {
+        var var1 = stack[stack.length - 2];
+        var var2 = stack[stack.length - 1];
+        
+        popStack(stack, stack.length - 2, 2);
+        
+        stack.push(var1 % var2);
+      } else {
+        throwError("value missing; stack length: " + stack.length, scope, code[line]);
+      }
+      continue;
+    }
+    
     // take absolute value of last element in stack and append it
     if (tokens[0] === "abs") {
       if (stack.length >= 1) {
