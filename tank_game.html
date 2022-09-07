@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Tank Game Collab</title>
+	<script src="https://cdn.jsdelivr.net/gh/vExcess/library_files@main/p5.js"></script>
+	<style>
+		body {
+			background-color: black;
+			overflow: hidden;
+		}
+		canvas {
+			position: absolute;
+		}
+	</style>
+</head>
+<body>
+  <script type>
+var keys = [];
+function keyPressed () {
+	keys[keyCode] = true;
+}
+function keyReleased() {
+	keys[keyCode] = false;
+}
+
+var charKey = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=`~[]{};:./<>';
+var decompressBitmap;
+var drawBitmap;
+
+var scene = 1;
+
+var player1 = {
+	x: 100,
+	y: 250,
+	destX: this.x,
+	destY: this.y,
+	moving: false,
+	w: 75,
+	h: 75,
+	speed: 3,
+	dir: 1,
+	currSprite: 0,
+	sprites: [
+	  'ƫƫƫ®®®ðĄĎĆ¼¼ĭÁÁë¸¸ŤÉÉĭÂÂÝëòÜéðë¶¶!a´b¾a°,a³b¯c½d¯b¯a¯,a²b¯e¯d¯c¯d¯e¯c¯d¯e¯c¯d°c¯d¯e¯c¯d±b¯,a²b¯d°c¯d°c¯d°c¯d°c¯d°c¯d¯f°b¯,a²b¯d¯b¾f¯b¯,a²b¯d¯b¯g¹h°d¯b¯f¯b¯,a²b¯d¯b¯h¼b¯f¯b¯,a²b¯d¯b¯h¯b½a¯,a³b°h¯b¯g¸h°d¯b¯a¯,a´b¯h¯b¯h»b¯a¯,a¯bÅ,b¯i·g°e´h°d°f¯b¯,b¯c¹j¯gµh°d¯b¯,b¯i·g¹h°b¯,a¯bÅ,a´b¯h¯b¯h»b¯a¯,a³b°h¯b¯g¹h°b¯a¯,a²b¯d¯b¯h¯b½a¯,a²b¯d¯b¯h¼b¯f¯b¯,a²b¯d¯b¯g¸h²b¯f¯b¯,a²b¯d¯b¾k¯b¯,a²b¯d°c¯d°c¯d°c¯d°c¯d°c¯d¯k°b¯,a²b¯e¯d¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d±b¯,a³b¯c½d¯b¯a¯,a´b¾a°,',
+	  'ƫƫƫ®®®ðĄĎĆ¼¼ĭÂÂĭÁÁë¸¸ŤÉÉÝëòÜéðë¶¶!a³b¿a°,a²b¯c¿b¯a¯,a²b¯c¯d°c¯d°c¯d°c¯d°c¯d°c¯e¯d¯b¯,a²b¯c¯d¯f¯c¯d¯f¯c¯d¯f¯c¯d¯f¯c¯d¯f¯c¯g°b¯,a²b¯c¯b¾g¯b¯,a²b¯c¯b¯h¹e°d¯b¯g¯b¯,a²b¯c¯b¯e¼b¯g¯b¯,a²b¯c¯b¯e¯b½a¯,a³b°e¯b¯h¸e°d¯b¯a¯,a´b¯e¯b¯e»b¯a¯,a¯bÅ,b¯i·h°f´e°d°g¯b¯,b¯c¹j¯hµe°d¯b¯,b¯i·h¹e°b¯,a¯bÅ,a´b¯e¯b¯e»b¯a¯,a³b°e¯b¯h¹e°b¯a¯,a²b¯c¯b¯e¯b½a¯,a²b¯c¯b¯e¼b¯g¯b¯,a²b¯c¯b¯h¸e²b¯g¯b¯,a²b¯c¯b¾d¯b¯,a²b¯c¯d°c¯k¯d¯c¯d°c¯d°c¯d°c¯d°b¯,a²b¯c¯d¯f¯c¯d¯f¯c¯d¯f¯c¯d¯f¯c¯d¯f¯c¯d¯e¯b¯,a²b¯c¿b¯a¯,a³b¿a°,'
+	 ]
+};
+
+var player2 = {
+  x: 500,
+	y: 250,
+	destX: 0,
+	destY: 0,
+	moving: false,
+	w: 75,
+	h: 75,
+	speed: 3,
+	dir: 3,
+	currSprite: 0,
+	sprites: [
+	  'ƫƫƫ®®®ðĄĎ½õģÆĕŕ¸ßÿÎŃƟÝëòÜéð!a´b¾a°,a³b¯c½d¯b¯a¯,a²b¯e¯d¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d°f¯b¯,a²b¯d°c¯d°c¯d°c¯d°c¯d°c¯d±b¯,a²b¯d¯b¾d¯b¯,a²b¯d¯b¯g¹e°d¯b¯d¯b¯,a²b¯d¯b¯e¼b¯d¯b¯,a²b¯d¯b¯e¯b½a¯,a³b°e¯b¯g¸e°d¯b¯a¯,a´b¯e¯b¯e»b¯a¯,a¯bÅ,b¯h·g°e·d°b¯,b¯c¹i¯gµe°d¯b¯,b¯h·g¹e°b¯,a¯bÅ,a´b¯e¯b¯e»b¯a¯,a³b°e¯b¯g¹e°b¯a¯,a²b¯d¯b¯e¯b½a¯,a²b¯d¯b¯e¼b¯d¯b¯,a²b¯d¯b¯gºe°b¯d¯b¯,a²b¯d¯b¾d¯b¯,a²b¯d°c¯d°c¯d°c¯d°c¯d°c¯d±b¯,a²b¯e¯d¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d°f¯b¯,a³b¯c½d¯b¯a¯,a´b¾a°,',
+	  'ƫƫƫ®®®ðĄĎ½õģÆĕŕ¸ßÿÎŃƟÝëòÜéð!a´b¾a°,a³c¿b¯a¯,a²b¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯f¯b¯,a²b¯c¯d°c¯d°c¯d°c¯d°c¯d°c¯d°b¯,a²b¯c¯b¾d¯b¯,a²b¯c¯b¯g¹e°d¯b¯d¯b¯,a²b¯c¯b¯e¼b¯d¯b¯,a²b¯c¯b¯e¯b½a¯,a³b°e¯b¯g¸e°d¯b¯a¯,a´b¯e¯b¯e»b¯a¯,a¯bÅ,b¯h·g°e·d°b¯,b¯c¹i¯gµe°d¯b¯,b¯h·g¹e°b¯,a¯bÅ,a´b¯e¯b¯e»b¯a¯,a³b°e¯b¯g¹e°b¯a¯,a²b¯c¯b¯e¯b½a¯,a²b¯c¯b¯e¼b¯d¯b¯,a²b¯c¯b¯gºe°b¯d¯b¯,a²b¯c¯b¾d¯b¯,a²b¯c¯d°c¯d°c¯d°c¯d°c¯d°c¯d°b¯,a²b¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯e¯c¯d¯f¯b¯,a³c¿b¯a¯,a´b¾a°,'
+	 ]
+};
+
+var obstacles = [];
+
+var drawPlayer;
+var updatePlayer;
+
+var drawObstacles;
+
+var rect_rectCollide;
+
+var GFXScl;
+function setupMyCanvas (width_, height_, type, scaleCanvas, FPS) {
+	if (!type) {
+		type = P2D;
+	}
+	if (!scaleCanvas) {
+		scaleCanvas = false;
+	}
+	if (!FPS) {
+		FPS = 60;
+	}
+	
+	window.addEventListener("keydown", function(e) {
+		if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
+			e.preventDefault();
+		}
+	}, false);
+	
+	var ratio = width_ / height_;
+	var sz = windowHeight;
+	if (sz * ratio > windowWidth) {
+		sz = windowWidth * (height_ / width_);
+	}
+	
+	var canvas;
+	if (scaleCanvas) {
+		canvas = createCanvas(sz * ratio, sz, type);
+		GFXScl = sz / height_;
+	} else {
+		canvas = createCanvas(width_, height_, type);
+		GFXScl = 1;
+	}
+	
+	canvas.id("myCanvas");
+	canvas.position((windowWidth - width) / 2, (windowHeight - height) / 2);
+	
+	frameRate(FPS);
+	angleMode(DEGREES);
+}
+
+function setup () {
+	setupMyCanvas(600, 600, P2D, true);
+	
+	decompressBitmap = function (bitmap) {
+		function decompress (symbol) {
+			return symbol.charCodeAt() - 174;
+		}
+		bitmap = bitmap.split("!");
+		var colorData = bitmap[0];
+		var pixelData = bitmap[1].split(",");
+		var newBitmap = [
+			[color(0, 0, 0, 0)]
+		];
+		for(var i = 3; i < colorData.length; i += 3) {
+			var r = decompress(colorData.charAt(i)),
+				g = decompress(colorData.charAt(i + 1)),
+				b = decompress(colorData.charAt(i + 2));
+			newBitmap[0].push(color(r, g, b));
+		}
+		for(var k = 0; k < pixelData.length; k++) {
+			newBitmap.push("");
+			for(var i = 0; i < pixelData[k].length; i += 2) {
+				var repeatNTimes = decompress(pixelData[k].charAt(i + 1));
+				var symbol = pixelData[k].charAt(i);
+				for(var j = 0; j < repeatNTimes; j++) {
+					newBitmap[newBitmap.length - 1] += symbol;
+				}
+			}
+		}
+		return newBitmap;
+	};
+	drawBitmap = function (bitmap, x, y, s) {
+		noStroke();
+		for(var row = 1; row < bitmap.length; row++) {
+			for(var indx = 0; indx < bitmap[row].length; indx++) {
+				fill(bitmap[0][charKey.indexOf(bitmap[row].charAt(indx))]);
+				rect(x + (row - 1) * s, y + indx * s, s, s);
+			}
+		}
+	};
+	
+	player1.sprites[0] = decompressBitmap(player1.sprites[0]);
+	player1.sprites[1] = decompressBitmap(player1.sprites[1]);
+	
+	player2.sprites[0] = decompressBitmap(player2.sprites[0]);
+	player2.sprites[1] = decompressBitmap(player2.sprites[1]);
+
+	rect_rectCollide = function(x1, y1, w1, h1, x2, y2, w2, h2) {
+		return !(x1 + w1 < x2 || x1 > x2 + w2 || y1 + h1 < y2 || y1 > y2 + h2);
+	};
+	
+	for (var i = 0; i < 15; i++) {
+		obstacles.push({
+			x: round(random(0, 600)),
+			y: round(random(0, 600)),
+			w: round(random(25, 75)),
+			h: round(random(25, 75)),
+		});
+	}
+
+	player1.draw = function () {
+		noStroke();
+		fill(0, 0, 0, 100);
+		rect(player1.x, player1.y, player1.w, player1.h);
+		
+		push();
+		  translate(player1.x + player1.w / 2, player1.y + player1.h / 2);
+		  rotate(player1.dir + 90);
+		  drawBitmap(player1.sprites[player1.currSprite], -player1.w / 2, -player1.h / 2, 3);
+		pop();
+		
+	};
+	
+	player2.draw = function () {
+		noStroke();
+		fill(0, 0, 255);
+		rect(player2.x, player2.y, player2.w, player2.h);
+		
+		push();
+		  translate(player2.x + player2.w / 2, player2.y + player2.h / 2);
+		  rotate(player2.dir * 90);
+		  drawBitmap(player2.sprites[player2.currSprite], -player2.w / 2, -player2.h / 2, 3);
+		pop();
+		
+	};
+	
+	drawObstacles = function () {
+		noStroke();
+		fill(0, 0, 0);
+		for(var i = 0; i < obstacles.length; i++) {
+			var obj = obstacles[i];
+			rect(obj.x, obj.y, obj.w, obj.h);
+		}
+	};
+	
+	updatePlayer = function () {
+    if (mouseIsPressed) {
+      player1.destX = mouseX - player1.w / 2;
+      player1.destY = mouseY - player1.h / 2;
+      player1.moving = true;
+    }
+    
+		//move x
+		if (player1.x < player1.destX) {
+			player1.x += player1.speed;
+		}else if (player1.x > player1.destX) {
+			player1.x -= player1.speed;
+		}
+		
+		if (abs(player1.x - player1.destX) < player1.speed) {
+		  player1.x = player1.destX;
+		}
+		
+		// constrain x
+		if (player1.x < 0) {
+		  player1.x = 0;
+		}
+		if (player1.x > width - player1.w) {
+		  player1.x = width - player1.w;
+		}
+		
+		//x collisions
+		for(var i = 0; i < obstacles.length; i++) {
+			var obj = obstacles[i];
+			if (rect_rectCollide(obj.x, obj.y, 1, obj.h, player1.x, player1.y, player1.w, player1.h)) {
+				player1.x += obj.x - (player1.x + player1.w) - 1;
+			}
+			if (rect_rectCollide(obj.x + obj.w - 1, obj.y, 1, obj.h, player1.x, player1.y, player1.w, player1.h)) {
+				player1.x += (obj.x + obj.w) - player1.x + 1;
+			}
+		}
+		
+		
+		//move y
+		if (player1.y < player1.destY) {
+			player1.y += player1.speed;
+		}else if (player1.y > player1.destY) {
+			player1.y -= player1.speed;
+		}
+		
+		if (abs(player1.y - player1.destY) < player1.speed) {
+		  player1.y= player1.destY;
+		}
+		
+		// constrain y
+		if (player1.y < 0) {
+		  player1.y = 0;
+		}
+		if (player1.y > height - player1.h) {
+		  player1.y = height - player1.h;
+		}
+		
+		//y collisions
+		for(var i = 0; i < obstacles.length; i++) {
+			var obj = obstacles[i];
+			if (rect_rectCollide(obj.x, obj.y, obj.w, 1, player1.x, player1.y, player1.w, player1.h)) {
+				player1.y += obj.y - (player1.y + player1.h) - 1;
+			}
+			if (rect_rectCollide(obj.x, obj.y + obj.h - 1, obj.w, 1, player1.x, player1.y, player1.w, player1.h)) {
+				player1.y += (obj.y + obj.h) - player1.y + 1;
+			}
+		}
+		
+		player1.dir = atan2(player1.destY - player1.y, player1.destX - player1.x);
+		
+		if (player1.x === player1.destX && player1.y === player1.destY) {
+		  player1.moving = false;
+		}
+		
+		if (player1.moving && frameCount % 2 === 0) {
+		  player1.currSprite = (player1.currSprite + 1) % player1.sprites.length;
+		}
+		
+	};
+	
+}
+
+function draw () {
+	background(34, 171, 0);
+	
+	updatePlayer();
+	
+	drawObstacles();
+	
+	player1.draw();
+	
+	player2.draw();
+	
+	noStroke();
+	fill(255, 255, 255);
+	textSize(15);
+	text("FPS: " + round(frameRate() / 2) * 2, 10, 20);
+	text("Canvas Scale Factor: " + GFXScl, 10, 40);
+	
+	clicked = false;
+}
+
+  </script>
+  <script>/**RESTART_BUTTON**/</script>
+</body>
+</html>
