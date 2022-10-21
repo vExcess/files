@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<!--
+    Go here for more information about domain warping:
+    https://iquilezles.org/articles/warp
+    
+    This version was written in JavaScript, 
+    go to the following link to see the WebGL version:
+    https://www.khanacademy.org/computer-programming/webgl-magical-waters/5347741682679808
+    
+    The WebGL version looks drastically different due to it using a different perlin noise algorithm. 
+-->
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Magical Waters</title>
+    
+    <style>
+        body {
+            margin: 0px;
+            overflow: hidden;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+    <canvas id="infoCanvas"></canvas>
+    
+    <script id="worker-script" type="text/plain">
+// https://unpkg.com/perlin-noise-3d@0.5.4/dist/perlin-noise-3d.min.js
+var perlinNoise3d=function(){for(var r=Math.floor(720),n=new Array(r),t=new Array(r),i=Math.PI/180,e=0;e<r;e++)n[e]=Math.sin(e*i*.5),t[e]=Math.cos(e*i*.5);var o=r;o>>=1;var l=function(){this.perlin_octaves=4,this.perlin_amp_falloff=.5,this.perlin=null};return l.prototype={noiseSeed:function(r){var n=function(){var r,n,t=4294967296;return{setSeed:function(i){n=r=(null==i?Math.random()*t:i)>>>0},getSeed:function(){return r},rand:function(){return(n=(1664525*n+1013904223)%t)/t}}}();n.setSeed(r),this.perlin=new Array(4096);for(var t=0;t<4096;t++)this.perlin[t]=n.rand();return this},get:function(n,i,e){if(i=i||0,e=e||0,null==this.perlin){this.perlin=new Array(4096);for(var l=0;l<4096;l++)this.perlin[l]=Math.random()}n<0&&(n=-n),i<0&&(i=-i),e<0&&(e=-e);for(var a,h,s,f,p,u=Math.floor(n),c=Math.floor(i),v=Math.floor(e),d=n-u,M=i-c,_=e-v,m=0,y=.5,w=function(n){return.5*(1-t[Math.floor(n*o)%r])},A=0;A<this.perlin_octaves;A++){var S=u+(c<<4)+(v<<8);a=w(d),h=w(M),s=this.perlin[4095&S],s+=a*(this.perlin[S+1&4095]-s),f=this.perlin[S+16&4095],s+=h*((f+=a*(this.perlin[S+16+1&4095]-f))-s),f=this.perlin[4095&(S+=256)],f+=a*(this.perlin[S+1&4095]-f),p=this.perlin[S+16&4095],f+=h*((p+=a*(this.perlin[S+16+1&4095]-p))-f),m+=(s+=w(_)*(f-s))*y,y*=this.perlin_amp_falloff,u<<=1,c<<=1,v<<=1,(d*=2)>=1&&(u++,d--),(M*=2)>=1&&(c++,M--),(_*=2)>=1&&(v++,_--)}return m}},l}();
+
+var PerlinNoise = new perlinNoise3d();
+PerlinNoise.noiseSeed(2);
+var noise = (x, y, z) => PerlinNoise.get(x, y, z);
+
+var imageData = new ImageData(width, height);
+var pix = imageData.data;
+
+function vec2Mag (v) {
+    var x = v[0], y = v[1];
+    return Math.sqrt(x*x + y*y);
+}
+
+function fbm(x, y, time, H) {    
+    var numOctaves = 2;
+    H = H || 2;
+    var G = Math.pow(2, -H);
+    var f = 1;
+    var a = 1.0;
+    var t = 0.0;
+    for (var i = numOctaves; i > 0; --i) {
+        t += a * noise(x * f, y * f, time);
+        f *= 2;
+        a *= G;
+    }
+    return t;
+}
+
+function pattern (x, y, time) {
+    var o1 = [
+        fbm(x + 0, y + 0, time), 
+        fbm(x + 5.2, y + 1.3, time)
+    ];
+    
+    var t = [o1[0] * 4, o1[1] * 4];
+    var o2 = [
+        fbm(x + t[0] + 1.7, y + t[1] + 9.2, time),
+        fbm(x + t[0] + 8.3, y + t[1] + 2.8, time)
+    ];
+
+    t = [o2[0] * 4, o2[1] * 4];
+    
+    return {
+        o1: o1,
+        o2: o2,
+        fbm: fbm(x + t[0], y + t[1], time)
+    };
+}
+
+self.onmessage = function (e) {
+    let xOff = e.data.xOff;
+    let yOff = e.data.yOff;
+    let xIncr = e.data.xIncr;
+    let yIncr = e.data.yIncr;
+    let time = e.data.time;
+        
+    var w = imageData.width;
+    var h = imageData.height;
+    
+    for (var x = xOff; x < w; x += xIncr) {
+        for (var y = yOff; y < h; y += yIncr) {
+            var idx = (x + y * w) << 2;
+            
+            var xx = x / width * 2.0;
+            var yy = y / height * 2.0;
+            
+            var res = pattern(xx, yy, time);
+            
+            var c = res.fbm * 255;
+            
+            pix[idx] = c * res.o1[0];
+            pix[idx + 1] = c * vec2Mag(res.o2) * res.o1[1];
+            pix[idx + 2] = c * vec2Mag(res.o2);
+            pix[idx + 3] = 255;
+        }
+    }
+    
+    // send data to main
+    postMessage({
+        xOff: xOff,
+        yOff: yOff,
+        xIncr: xIncr,
+        yIncr: yIncr,
+        pixels: imageData.data
+    });
+};
+    </script>
+
+    <script type>
+(()=>{
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+    
+    var width = 400;
+    var height = 400;
+    var frameCount = 0;
+    
+    var coreCount = navigator.hardwareConcurrency ? Math.floor(navigator.hardwareConcurrency / 2) : 4;
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    function fixMemoryLeaks () {
+        // terminate workers
+        if (window.workers) {
+            for (var i = 0; i < window.workers.length; i++) {
+                window.workers[i].terminate();
+                window.workers.splice(i, 1);
+            }
+        }
+        
+        // clear previous intervals
+        var i = setInterval(()=>{});
+        while (i) {
+            clearInterval(i--);
+        }
+        
+        // revoke old worker blob URL
+        if (window.workerScriptURL) {
+            URL.revokeObjectURL(window.workerScriptURL);
+        }
+    }
+    fixMemoryLeaks();
+    
+    var canvasData = new ImageData(width, height);
+    function updateCanvasData (data) {
+        let x, y;
+        
+        let pDest = canvasData.data;
+        
+        let xOff = data.xOff;
+        let yOff = data.yOff;
+        let xIncr = data.xIncr;
+        let yIncr = data.yIncr;
+        let p = data.pixels;
+        
+        for (y = yOff; y < height; y += yIncr) {
+            for (x = xOff; x < width; x += xIncr) {
+                let i = (x + (height - y) * width) << 2;
+                
+                pDest[i] = p[i];
+                pDest[i+1] = p[i+1];
+                pDest[i+2] = p[i+2];
+                pDest[i+3] = 255;
+            }
+        }
+        
+        ctx.putImageData(canvasData, 0, 0);
+    }
+    
+        // put together the code the workers run
+    var workerScriptCode = `
+    var width = ${width}, height = ${height};
+    ${document.getElementById("worker-script").innerHTML}
+    `;
+    
+    // create a blob url for the worker script
+    window.workerScriptBlob = new Blob([workerScriptCode], {type: 'text/javascript'});
+    window.workerScriptURL = URL.createObjectURL(window.workerScriptBlob);
+    
+    // FPS Tracker class
+    class FPS_Tracker {
+        constructor () {
+            this.FPS = 0;
+            this.frameCount = 0;
+
+            let that = this;
+            setInterval(function () {
+                that.FPS = that.frameCount;
+                that.frameCount = 0;
+            }, 1000);
+        }
+
+        update () {
+            this.frameCount++;
+        }
+
+        toString () {
+            return this.FPS;
+        }
+    }
+    
+    window.workers = window.workers || [];
+    var workerFPSTrackers = [];
+    var areWorkersAvailable = [];
+    
+    for (let i = 0; i < coreCount; i++) {
+        // create new FPS tracker for worker
+        workerFPSTrackers.push(new FPS_Tracker());
+        
+        // set the worker to being available
+        areWorkersAvailable.push(true);
+        
+        // create the new worker
+        window.workers.push(new Worker(window.workerScriptURL));
+        
+        // recieve updates from the worker (when it finishes a request)
+        window.workers[i].onmessage = function (e) {
+            // updates the FPS for the worker
+            workerFPSTrackers[i].update();
+            
+            // set it to being available
+            areWorkersAvailable[i] = true;
+
+            // display the pixel data it sent
+            updateCanvasData(e.data);
+        };
+        
+    }
+    
+    function WorkRequest (workerIdx, xOff, yOff, xIncr, yIncr, time) {
+        // if the worker is available
+        if (areWorkersAvailable[workerIdx]) {
+            // make a request to it
+            window.workers[workerIdx].postMessage({
+                xOff: xOff,
+                yOff: yOff,
+                xIncr: xIncr,
+                yIncr: yIncr,
+                time: time
+            });
+            
+            // set it to unavailable
+            areWorkersAvailable[workerIdx] = false;
+        }
+    }
+    
+    var infoCanvas = document.getElementById("infoCanvas");
+    var infoCtx = infoCanvas.getContext("2d");
+    
+    function main() {
+        var t = Date.now() * 0.0001;
+        
+        if (coreCount === 4) {
+            WorkRequest(0, 0, 0, 2, 2, t);
+            WorkRequest(1, 0, 1, 2, 2, t);
+            WorkRequest(2, 1, 0, 2, 2, t);
+            WorkRequest(3, 1, 1, 2, 2, t);
+        } else if (coreCount === 6) {
+            WorkRequest(0, 0, 0, 3, 2, t);
+            WorkRequest(1, 0, 1, 3, 2, t);
+            WorkRequest(2, 1, 0, 3, 2, t);
+            WorkRequest(3, 1, 1, 3, 2, t);
+            WorkRequest(4, 2, 0, 3, 2, t);
+            WorkRequest(5, 2, 1, 3, 2, t);
+        }
+        
+        // display FPS info
+        infoCtx.clearRect(0, 0, infoCanvas.width, infoCanvas.height);
+
+        infoCtx.font = "15px sans-serif";
+        infoCtx.fillStyle = "rgb(0, 0, 0)";
+        for (var i = 0; i < Math.PI * 2; i += 0.1) {
+            infoCtx.fillText("Worker Threads FPS: " + workerFPSTrackers, Math.sin(i) * 1.5 + 6, Math.cos(i) * 1.5 + 18);
+        }
+        
+        infoCtx.fillStyle = "rgb(255, 255, 255)";
+        infoCtx.fillText("Worker Threads FPS: " + workerFPSTrackers, 6, 18);
+    }
+    
+    setInterval(main, 1000 / 30);
+})();
+    </script>
+
+</body>
+</html>
