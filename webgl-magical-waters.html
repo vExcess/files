@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<!--
+    Go here for more information about domain warping:
+    https://iquilezles.org/articles/warp
+    
+    This version was written in GLSL, 
+    go to the following link to see the JavaScript version:
+    https://www.khanacademy.org/computer-programming/magical-waters/6181877112684544
+    
+    The WebGL version looks drastically different due to it using a different perlin noise algorithm. 
+-->
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>WebGL Magical Waters</title>
+    <style>
+        body {
+            overflow: hidden;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    
+    <canvas id='gl-canvas' width='600' height='600'></canvas>
+
+    <!-- VERTEX SHADER -->
+    <script id='vertexShader' type='GLSL'>
+precision lowp float;
+attribute vec2 pos;
+varying vec2 pix;
+
+void main(){
+  pix = vec2(pos.x / 2.0 + 0.5, -pos.y / 2.0);
+  gl_Position = vec4(pos, 0, 1);
+}
+    </script>
+    
+    <!-- FRAGMENT SHADER -->
+    <script id='fragmentShader' type='GLSL'>
+precision lowp float;
+varying vec2 pix;
+uniform vec4 inputData;
+
+vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+vec3 fade(vec3 t) { return t*t*t*(t*(t*6.0-15.0)+10.0); }
+float noise(vec3 P) {
+    vec3 i0 = mod289(floor(P)), i1 = mod289(i0 + vec3(1.0));
+    vec3 f0 = fract(P), f1 = f0 - vec3(1.0), f = fade(f0);
+    vec4 ix = vec4(i0.x, i1.x, i0.x, i1.x), iy = vec4(i0.yy, i1.yy);
+    vec4 iz0 = i0.zzzz, iz1 = i1.zzzz;
+    vec4 ixy = permute(permute(ix) + iy), ixy0 = permute(ixy + iz0), ixy1 = permute(ixy + iz1);
+    vec4 gx0 = ixy0 * (1.0 / 7.0), gy0 = fract(floor(gx0) * (1.0 / 7.0)) - 0.5;
+    vec4 gx1 = ixy1 * (1.0 / 7.0), gy1 = fract(floor(gx1) * (1.0 / 7.0)) - 0.5;
+    gx0 = fract(gx0); gx1 = fract(gx1);
+    vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0), sz0 = step(gz0, vec4(0.0));
+    vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1), sz1 = step(gz1, vec4(0.0));
+    gx0 -= sz0 * (step(0.0, gx0) - 0.5); gy0 -= sz0 * (step(0.0, gy0) - 0.5);
+    gx1 -= sz1 * (step(0.0, gx1) - 0.5); gy1 -= sz1 * (step(0.0, gy1) - 0.5);
+    vec3 g0 = vec3(gx0.x,gy0.x,gz0.x), g1 = vec3(gx0.y,gy0.y,gz0.y),
+        g2 = vec3(gx0.z,gy0.z,gz0.z), g3 = vec3(gx0.w,gy0.w,gz0.w),
+        g4 = vec3(gx1.x,gy1.x,gz1.x), g5 = vec3(gx1.y,gy1.y,gz1.y),
+        g6 = vec3(gx1.z,gy1.z,gz1.z), g7 = vec3(gx1.w,gy1.w,gz1.w);
+    vec4 norm0 = taylorInvSqrt(vec4(dot(g0,g0), dot(g2,g2), dot(g1,g1), dot(g3,g3)));
+    vec4 norm1 = taylorInvSqrt(vec4(dot(g4,g4), dot(g6,g6), dot(g5,g5), dot(g7,g7)));
+    g0 *= norm0.x; g2 *= norm0.y; g1 *= norm0.z; g3 *= norm0.w;
+    g4 *= norm1.x; g6 *= norm1.y; g5 *= norm1.z; g7 *= norm1.w;
+    vec4 nz = mix(vec4(dot(g0, vec3(f0.x, f0.y, f0.z)), dot(g1, vec3(f1.x, f0.y, f0.z)),
+        dot(g2, vec3(f0.x, f1.y, f0.z)), dot(g3, vec3(f1.x, f1.y, f0.z))),
+        vec4(dot(g4, vec3(f0.x, f0.y, f1.z)), dot(g5, vec3(f1.x, f0.y, f1.z)),
+            dot(g6, vec3(f0.x, f1.y, f1.z)), dot(g7, vec3(f1.x, f1.y, f1.z))), f.z);
+    return 2.2 * mix(mix(nz.x,nz.z,f.y), mix(nz.y,nz.w,f.y), f.x);
+}
+float noise(vec2 P) { return noise(vec3(P, 0.0)); }
+
+float fbm(float x, float y, float time) {    
+    const int numOctaves = 2;
+    float H = 2.0;
+    float G = pow(2.0, -H);
+    float f = 1.0;
+    float a = 1.0;
+    float t = 0.0;
+    for (int i = 0; i < numOctaves; i++) {
+        t += a * noise(vec3(x * f, y * f, time));
+        f *= 2.0;
+        a *= G;
+    }
+    return t;
+}
+
+vec2 o1, o2;
+float pattern (float x, float y, float time) {
+    o1 = vec2(
+        fbm(x, y, time), 
+        fbm(x + 5.2, y + 1.3, time)
+    );
+    
+    vec2 t = vec2(o1.x * 4.0, o1.y * 4.0);
+    o2 = vec2(
+        fbm(x + t.x + 1.7, y + t.y + 9.2, time),
+        fbm(x + t.x + 8.3, y + t.y + 2.8, time)
+    );
+
+    t = vec2(o2.x * 4.0, o2.y * 4.0);
+    
+    return fbm(x + t.x, y + t.y, time);
+}
+
+float vec2Mag (vec2 v) {
+    return sqrt(v.x*v.x + v.y*v.y);
+}
+
+void main(){
+    float c = pattern(pix.x * 6.0, pix.y * 6.0, inputData.x);
+    
+	gl_FragColor = vec4(
+	    c * o1.x, 
+	    c * vec2Mag(o2) * o1.y,
+	    c * vec2Mag(o2),
+	    1.0
+    );
+}
+    </script>
+    
+    <!-- MAIN SCRIPT -->
+    <script type>
+var webglFramecount = 0;
+var glCanvas = document.getElementById('gl-canvas');
+var gl = glCanvas.getContext('webgl');
+(function main () {
+    if(!gl){
+      alert('No WebGL')
+      return;
+    }
+    
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    
+    gl.viewport(0, 0, 600, 600);
+    
+    let vertexShaderText = document.getElementById('vertexShader').innerText;
+    let fragmentShaderText = document.getElementById('fragmentShader').innerText;
+    
+    let vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, vertexShaderText);
+    gl.compileShader(vertexShader);
+    
+    let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, fragmentShaderText);
+    gl.compileShader(fragmentShader);
+    
+    let program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.useProgram(program);
+    
+    //this is a rectangle that covers the screen
+    let verts = [-1, 1, 1, 1, 1, -1, -1, -1];
+    let index = [0, 1, 2, 2, 3, 0];
+    
+    let vertBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+    
+    let indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(index), gl.STATIC_DRAW);
+    
+    let posAttribLoc = gl.getAttribLocation(program, 'pos');
+    gl.vertexAttribPointer(posAttribLoc, 2, gl.FLOAT, gl.FALSE, 8, 0);
+    gl.enableVertexAttribArray(posAttribLoc)
+    
+    let pointsUniformLoc = gl.getUniformLocation(program, 'inputData');
+
+    var webglLastTime = Date.now();
+    var GLTime = 0;
+    function loop () {
+        gl.uniform4fv(pointsUniformLoc, [GLTime, 0, 0, 0]);
+        GLTime += 0.004;
+        
+        gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+        
+        webglFramecount++;
+        if (Date.now() - webglLastTime >= 1000) {
+            webglFPS = webglFramecount;
+            webglFramecount = 0;
+            webglLastTime = Date.now();
+        }
+    }
+    
+    setInterval(loop, 1000 / 60);
+    
+})();
+    </script>
+    
+    <script>/*Restart Button*/</script>
+    
+</body>
+</html>
