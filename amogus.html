@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!--
+    
+        Drag mouse on canvas to spin
+        
+        I made the model in Fusion 360
+    
+    -->
+    <meta charset="utf-8"/>
+    <title>epiker</title>
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            width: 600px;
+            height: 600px;
+        }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/3.2.0/babylon.js"></script>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+    
+    <script type>
+addEventListener('wheel', e => e.preventDefault(), { passive: false })
+
+var canvas = document.getElementById('canvas');
+canvas.getContext = function(type, data) {
+  // capture the canvas when saving the program
+  data.preserveDrawingBuffer = true;
+  return HTMLCanvasElement.prototype.getContext.call(canvas, type, data);
+}
+
+// load the 3D engine and create a scene
+var engine = engine || new BABYLON.Engine(canvas, true);
+
+var scene = new BABYLON.Scene(engine);
+
+var camera = new BABYLON.ArcRotateCamera("camera", 0, 0, 70, new BABYLON.Vector3(5, 0, 0), scene);
+camera.attachControl(canvas, true);
+
+var alphaAnimation = new BABYLON.Animation("camAlpha", "alpha", 7, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_RELATIVE)
+var keys2 = [{
+    frame : 0,
+    value : Math.PI
+}, {
+  frame : 40,
+  value : -Math.PI
+}]
+alphaAnimation.setKeys(keys2)
+
+
+var betaAnimation = new BABYLON.Animation("camBeta", "beta", 7, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE__CYCLE)
+var keys3 = [{
+    frame : 0,
+    value : 0
+}, {
+  frame : 10,
+  value : 2
+}, {
+    frame : 20,
+    value : 0
+}]
+betaAnimation.setKeys(keys3)
+
+camera.animations.push(alphaAnimation)
+camera.animations.push(betaAnimation)
+// scene.beginAnimation(camera, 0, 100, true)
+
+var light = new BABYLON.HemisphericLight("light", {x: -200, y: -200, z: 200}, scene);
+light.intesity = 0.5;
+
+var light2 = new BABYLON.DirectionalLight("light", new BABYLON.Vector3(0.45, -0.34, -1), scene);
+light2.intensity = 0.5;
+
+// {
+
+var amogusBody = "¥,GÌ, $], 9Q,GÌ, $], 9Q,GÌ, ;Î,:T,GÌ, $],:T,GÌ, /9,:T,GÌ, ;Î, *1,>D, A£,1þ,;e, A£,6>,8l, A£, 1Ý,;{, A£, 5;,9K, A£, 5;,Aö, A£,¥,Aö, A£,6>,Aö, A£, '^,>ø,$Ì,.z,<Ë,$Ì, 7é,DÈ,$Ì,¥,DÈ,$Ì, 7é,6ì,$Ì,8ì,DÈ,$Ì,8ì,5Ô,$Ì, 2ó,3X, H@,.,+y, GÌ, -ñ, 4~, GÌ, -Ó,4³, GÌ, 8T, .Á, LÏ, (q, (×, LÏ, 0§, /p, LÏ, -|,.m, LÏ, 'Ù,(V, LÏ, 8@,.å, LÏ, 3ª,/ä, LÏ,%, +k, GÌ, 8Í,02, I´, 8ã, /è, I´, 8ß, +T, ^È, (_,2, ^È, /¯, -1, ^È, 8ß,+q, ^È, /¯,-M, ^È, =I,ã, ^È, -ñ, 4~, GÌ,&+, 6Å, GÌ,-ê, 4£, GÌ,'ö, 1Í, GÌ,%, +k, GÌ, %^, >è, 3ï,;ð,1©, ;Î,9O, 5(, @Ð, 2B, ;«, ?}, *b, >g, ?},&¼, >ò, ?},2:, ;±, ?},?}, V, G^,=ö, -*, DA,:/,4h, @Ú,=ö,-*, DA, 59, 9¢, 0Æ,?},V, G^, ;+, 2ù,!, 8§, 6D, +c, >È, (O,!, =ç,+s,!, :í,3E, $], :£,3Ö,!, :í,3E, ;Î,59, 9¢, 0Æ,::, 4S, 'ù,;+, 2ù,!,?G, %ý,!,>p,*=,!, 9n,5O, @±,;¦,2K,!, ?|,q, G^,;ð,1©, $], =ê,-M, D>, =ú, +ú, D>, ;c, 2h, Aª, ?}, >, G^, 8T, .Á, LÏ, (q, (×, LÏ, 0§, /p, LÏ, -|,.m, LÏ, 'Ù,(V, LÏ, 8@,.å, LÏ, 3ª,/ä, LÏ, 8ß, +T, ^È, <á, )½, KN, (_,2, ^È, /¯, -1, ^È, 8ß,+q, ^È, /¯,-M, ^È, =I,ã, ^È, ?t,Í, H), ?u, y, H),=J, Ð, ^È,+!,)Ã, ^È,9², +&, ^È,8î,*Ç, ^È,1!, -®, ^È,(j, %M, ^È, 8T, .Á, LÏ, <á, )½, KN, ?u, y, H), 8ã, /è, I´,.,+y, GÌ,8N,.Î, LÏ,-ê, 4£, GÌ,8Ü, /õ, Iµ,-ê,4£, GÌ,3©,2û, HO,8Ü,/õ, Iµ,'ö, 1Í, GÌ,%, +k, GÌ,(3,(«, LÏ,/ù,/W, LÏ,)d, *Í, LÏ,&², $Æ, LÏ,/ù, /W, LÏ,8N, .Î, LÏ,.,+y, GÌ,&8,6Ã, GÌ,-ê,4£, GÌ, -Ó,4³, GÌ, 8@,.å, LÏ, =>,*Æ, IN, ?t,Í, H), 8Í,02, I´,¥,GÌ, $], 9Q,GÌ, $], 7é,DÈ,$Ì,¥,DÈ,$Ì,8ì,DÈ,$Ì,:T,GÌ, $],;ð,F0, $],8ì,DÈ,$Ì,:T,GÌ, $], 9Q,GÌ, $], 7é,DÈ,$Ì, :í,F0, $],;ð,F0, $],:T,GÌ, $],;^,G¢, ;Î,;ð,F0, ;Î,:T,GÌ, /9,:T,GÌ, ;Î, 9Q,GÌ, $], :í,F0, $], 9Q,GÌ, ;Î, :í,F0, ;Î, :í,F0, 1ñ,;ð,F0, $],8ì,DÈ,$Ì,8ì,5Ô,$Ì,;¦,2K,!,;ð,1©, $],;ð,1©, ;Î,;ð,F0, $],;ð,F0, ;Î,;ð,1©, $],;^,G¢, ;Î,;ð,F0, ;Î,9n,FI, @y,6>,Aö, A£,::,E&, @¬,:T,GÌ, ;Î,?t, ´, H),<ì, *ç, IS,8Ü, /õ, Iµ,8N, .Î, LÏ,<u, *x, K¶,8N,.Î, LÏ,<Ï,*A, K},?t, ´, H),?t,´, H),(3,(«, LÏ,/ù,/W, LÏ,)d, *Í, LÏ,&², $Æ, LÏ,/ù, /W, LÏ,8N, .Î, LÏ,<u, *x, K¶,=J, Ð, ^È,+!,)Ã, ^È,9², +&, ^È,8î,*Ç, ^È,1!, -®, ^È,(j, %M, ^È,8N,.Î, LÏ,<Ï,*A, K},?t,´, H),8Ü,/õ, Iµ,(', <Ç, D×, -ñ, 4~, GÌ,&+, 6Å, GÌ, /à, 7¿, FÎ, 1g, :F, D_, 2B, ;«, ?}, *b, >g, ?},&¼, >ò, ?},2:, ;±, ?},0ã, 9u, EN,-ê, 4£, GÌ, -ñ, 4~, GÌ, /à, 7¿, FÎ, 1g, :F, D_, 2B, ;«, ?}, =ú, +ú, D>, ;c, 2h, Aª, 8ã, /è, I´,9O, 5(, @Ð,2:, ;±, ?},0ã, 9u, EN,-ê, 4£, GÌ,8Ü, /õ, Iµ,<*, /&, GK,=ö, -*, DA, ?|,q, G^, =>,*Æ, IN, ?t,Í, H), =ê,-M, D>, 8Í,02, I´, 2ó,3X, H@, 7Õ,5¥, DQ, 9n,5O, @±, =ê,-M, D>, 8Í,02, I´, 2ó,3X, H@, 0_,8õ, Eü, -Ó,4³, GÌ, 1Ý,;{, A£, 5;,9K, A£, 7Õ,5¥, DQ, 9n,5O, @±, ?|,q, G^, ?t,Í, H), ?u, y, H), ?}, >, G^, ?u, y, H), =ú, +ú, D>, ?}, >, G^, 8ã, /è, I´,?}, V, G^,?t, ´, H),<ì, *ç, IS,8Ü, /õ, Iµ,<*, /&, GK,=ö, -*, DA, '^,>ø,$Ì,&©,)à,>;, 1æ,:j,*3,.z,<Ë,$Ì, -Ô,8Å,2Ì, ;è, %É,0®, 9!,3ç,*3, 7?,$j,7e, *&,+Ú,<Ü, /K,$Ç,<Ü, .Í, 9¢,1c, 39,/q,7e,0}, 2l,7e, 6%, 6`,-W, 8ä,.k,1Ð,8ç, .m,1½, ;+, 2ù,!, :8, /%,/±,6ÿ, $W,7e, >È, (O,!, 1þ, +d,9²,/I, ¦,<Ü,.Í, 9¢,1c, =ç,+s,!, 2$, 3R,5©,<A,'¹,/±,&/, :Ò,2¤, :£,3Ö,!, '$, $+,>å,7N,-³,4¬, )., 6_,7e,9!,3ç,*3, %|, .ì,<Ü,%È, $Í,?.,%À, 6õ,7e,1æ,:j,*3,8=, 53,*V,)r, .~,<Z,2A,5÷,2Ì, 7é,6ì,$Ì,**,9K,3É,+|,0°,:q,'â,=é,*3,!,9~,4¬, &¢,2ü,:q,8ì,5Ô,$Ì,;+, 2ù,!,?G, %ý,!,>p,*=,!,;¦,2K,!, 5;,9K, A£, :í,F0, ;Î, :í,3E, ;Î, 5;,Aö, A£, 8V,D¤, @ý, 9n,5O, @±, 7é,DÈ,$Ì, :í,F0, $], :í,3E, $], :£,3Ö,!, 7é,6ì,$Ì, 9Q,GÌ, ;Î, :í,F0, ;Î, 8¼,FÄ, ?Ô, 5;,Aö, A£, 8V,D¤, @ý,;ð,1©, ;Î,6>,8l, A£,:/,4h, @Ú,;A,91, ?¹,8Û,<9, AA,;ð,F0, ;Î,6>,Aö, A£,::,E&, @¬,?t,´, H),8Ü,/õ, Iµ,=ö,-*, DA,?},V, G^,?}, V, G^,?t, ´, H),?t,´, H),?},V, G^,1þ,;e, A£,0ø,9¼, Dü,-ê,4£, GÌ,6>,8l, A£,:/,4h, @Ú,3©,2û, HO,:/,4h, @Ú,3©,2û, HO,8Ü,/õ, Iµ,=ö,-*, DA,&8,6Ã, GÌ, *1,>D, A£,1þ,;e, A£,0ø,9¼, Dü,-ê,4£, GÌ, 0_,8õ, Eü, -Ó,4³, GÌ, 1Ý,;{, A£, 9Q,GÌ, ;Î, 8¼,FÄ, ?Ô, 5;,Aö, A£,¥,Aö, A£, (5,Eÿ, @°,9n,FI, @y,6>,Aö, A£,:T,GÌ, ;Î, :í,F0, $], :í,F0, ;Î, :í,3E, $], :í,F0, 1ñ, :í,3E, ;Î,,!,%,$ (,%,! !,',( &,',! -,.,/ /,),- 0,),/ 0,*,) 1,*,0 +,*,1 7,3,8 5,3,7 5,2,3 4,2,5 4,6,2 =,?,F D,A,: D,>,A @,<,A @,9,< C,E,9 B,E,C @,C,9 ;,>,D ?,>,; ;,F,? A,<,: K,G,L I,K,H K,I,G K,L,J Q,P,M P,N,M O,N,P l,p,n ],p,l ],S,p ],[,S l,_,] k,_,l k,Y,_ k,Z,Y j,Z,k j,T,Z i,T,j h,T,i h,X,T h,W,X R,W,h R,V,W ^,V,R ^,U,V a,U,^ a,s,U `,s,a b,s,` b,r,s b,t,r b,o,t c,o,b c,q,o d,c,e d,q,c g,q,d m,q,g {,¥,¦ {,£,¥ |,£,{ |,¤,£ y,¤,| z,¤,y z,¡,¤ w,¡,z w,¢,¡ x,¢,w u,¢,x u,},¢ ~,},u ~,¥,} §,¥,~ ¦,¥,§ «,¬,® ª,«,¨ ¬,«,ª «,®,© °,²,± ²,°,¯ º,À,µ º,¾,À ³,¿,» ½,³,· ½,¼,³ ¸,½,· º,¿,¾ º,»,¿ À,¶,µ Á,¶,À ¿,³,¼ ¹,´,¸ ½,¸,´ Å,Ä,Â Å,Ã,Ä Æ,È,Ç Ç,É,Æ Ë,Ì,Í Ê,Ë,Í Ï,Ê,Î Í,Î,Ê Ð,Ò,Ñ Ô,Ó,Õ Ø,Ú,Ù Û,Ú,Ø Ö,Ú,× Ö,Ù,Ú Þ,ß,à Ü,à,Ý Ü,Þ,à ä,â,ã ä,á,â å,á,ä é,è,ç æ,è,é î,ì,ë ê,ë,ì ì,ï,ê ì,î,í ó,ñ,ò ô,ñ,ó ð,ñ,ô ù,$$,$( ú,$$,ù ú,$&,$$ õ,$&,ú ö,$&,õ ø,$&,ö ø,$!,$& ÷,$!,ø !ÿ,$!,÷ !ÿ,$%,$! þ,$%,!ÿ þ,$',$% ý,$',þ û,$',ý û,$(,$' ü,$(,û $(,ü,ù $-,$*,$) $+,$*,$- $1,$/,$0 $.,$0,$8 $1,$0,$. $5,$1,$. $4,$1,$5 $4,$2,$1 $3,$2,$4 $.,$6,$5 $.,$7,$6 $8,$7,$. $;,$?,$: $>,$;,$< $;,$=,$? $>,$=,$; $9,$:,$? $@,$B,$E $@,$A,$B $B,$C,$E $D,$E,$C $@,$E,$F $G,$H,$I $G,$J,$H $J,$K,$H $O,$M,$P $P,$M,$L $N,$M,$O $T,$R,$V $R,$Q,$V $S,$Q,$R $U,$V,$W $U,$T,$V $[,$Y,$Z $[,$X,$Y $],$^,$_ $],$`,$^ $b,$a,$g $b,$g,$c $e,$d,$c $e,$c,$g $±,$~,$¬ $t,$~,$± $t,${,$~ $x,${,$t $¬,$§,$« $«,$©,$® $«,$},$© $§,$},$« $§,$q,$} $i,$¬,$~ $p,$§,$i $q,$§,$p $},$£,$© $q,$o,$} $µ,$i,$~ $¸,$i,$µ $¸,$p,$i $o,$m,$} ${,$µ,$~ $¨,$µ,${ $·,$¸,$µ $s,$p,$¸ $s,$q,$p $o,$q,$s $},$z,$£ $},$m,$z $²,$µ,$¨ $´,$µ,$² $´,$·,$µ $l,$¸,$· $l,$s,$¸ $¤,${,$x $¤,$¨,${ $w,$s,$l $w,$o,$s $m,$o,$w $»,$¤,$x $ª,$¨,$¤ $ª,$²,$¨ $¯,$²,$ª $¯,$´,$² $¶,$´,$¯ $¶,$·,$´ $h,$·,$¶ $h,$l,$· $j,$l,$h $j,$w,$l $n,$w,$j $¢,$w,$n $¢,$m,$w $i,$§,$¬ $t,$¥,$¡ $®,$¥,$t $®,$t,$± $«,$±,$¬ $«,$®,$± $©,$¥,$® $r,$¥,$© $r,$©,$£ $£,$u,$r $z,$u,$£ $y,$u,$z $½,$ª,$¼ $¹,$ª,$½ $k,$ª,$¹ $k,$¯,$ª $k,$¶,$¯ $h,$¶,$k $³,$j,$h $³,$n,$j $¦,$n,$³ $¢,$n,$¦ $z,$|,$y $m,$|,$z $m,$¢,$| $¤,$¼,$ª $¤,$»,$¼ $x,$º,$» $x,$°,$º $¡,$x,$t $¡,$°,$x $¾,$Â,$Á $Ã,$Â,$¾ $Ã,$¿,$Â $À,$¿,$Ã $Æ,$Ç,$Ä $Æ,$Ä,$Å $Ä,$Ç,$È $Í,$Ê,$Ë $Í,$Ë,$Ì $Ê,$É,$Ë $Ñ,$Ð,$Ò $Ñ,$Î,$Ð $Ñ,$Ó,$Î $Õ,$Ó,$Ñ $Ò,$Õ,$Ñ $Ò,$Ô,$Õ $Ï,$Ò,$Ð $Ô,$Ò,$Ï $Ø,$Ö,$× $Ø,$Ù,$Ö $Ú,$Ü,$Ý $Ú,$Û,$Ü $ß,$á,$â $ß,$Þ,$á $ã,$ß,$â $ã,$à,$ß $æ,$ä,$ç $æ,$å,$ä $è,$î,$í $ì,$è,$ë $é,$í,$ï $é,$è,$í $é,$ë,$è $é,$ê,$ë $ñ,$ð,$÷ $ñ,$÷,$ô $ò,$ñ,$ô $ô,$ö,$ó $õ,$ö,$ô $ô,$ó,$ò $÷,$õ,$ô $ü,$û,$ù $ú,$û,$ü $ø,$û,$ú";
+
+var amogusEyesBorder = " /S, >À,.U, .Í, 9¢,1c,/S, >À,.U,.Í, 9¢,1c,&/, :Ò,2¤,&¹, ?_,/°,/S, >À,.U,.Í, 9¢,1c,8y, 8´,'F,9ü, 6®,!,8=, 53,*V,;+, 2ù,!,/S, >À,.U,8y, 8´,'F,9ü, 6®,!,8', :÷, 'ä,4Å, >À,*Ê,8¢, >À,'J,9Ô, >À,6,7ì, >À, ($,5r, >À, *Z,9ü, 6®,!,8', :÷, 'ä,5r, >À, *Z,59, 9¢, 0Æ,::, 4S, 'ù,;+, 2ù,!, %^, >è, 3ï, 59, 9¢, 0Æ,5r, >À, *Z,59, 9¢, 0Æ, 5r, >À, *Z, 0ù, @O, -J, %¬, B%, .º,+), Ah, .D, 8', :÷, 'ä, /S, >À,.U, 6R, :s,);, 9-, >À, &I, 9ü, 6®,!, 5r, >À, *Z, 75, >À,(À, 9Î, >À,$|, /S, >À,.U, .Í, 9¢,1c, 6%, 6`,-W, 6R, :s,);, ;+, 2ù,!, 9ü, 6®,!, 8', :÷, 'ä, 59, 9¢, 0Æ, ;+, 2ù,!, 8§, 6D, +c, 9ü, 6®,!, 5r, >À, *Z,,$,(,' !,(,$ (,&,' %,&,( .,+,/ *,),. .,),+ /,+,- 3,7,8 3,6,7 2,6,3 4,1,0 5,1,4 6,1,5 6,2,1 9,:,= =,;,< :,;,= >,9,= A,?,B F,?,A E,?,F @,?,E C,@,D E,D,@ J,G,L J,K,G N,K,J N,I,K M,I,N H,I,M Q,O,P R,O,Q T,Q,S T,R,Q W,U,Y U,V,Z U,X,V U,W,X";
+
+var amogusEyes = "%Ò, B?,.p,&¹, ?_,/°, )¾, B*,-ø, 4p, Bq, (ó, .), Dú, &¦, 5Û, Cð, %g, 3n, Dú,{,+), Ah, .D,)§, CQ, +è, %¬, B%, .º, )ß, CÁ, +F,%?, Dú, (¤,2å, Bq, )õ,0À, Dú, %¤,7y, B[,%ô,0Ö, D[,(@,3Â, Dú,!,.*, Dú,&¦, 6@, CÈ,%G, 2Z, BÁ,)ò, 7d, A¦,'@, +?, CÉ,+', 75, >À,(À, 9Î, >À,$|, /S, >À,.U,4Å, >À,*Ê,1®, B»,*D, %=, Dú,(¥,9Ô, >À,6,8¢, >À,'J, 0ù, @O, -J, 9-, >À, &I, 8¼, A¶, $d, 5r, >À, *Z,5r, >À, *Z,7ì, >À, ($,65, CÉ, %{, /!, Dú,&m,/S, >À,.U,,!,$,% &,',( (,',) *,+,- -,+,. +,/,. 0,1,+ 2,3,4 3,5,4 6,7,8 9,%,7 8,:,; 7,:,8 7,<,: %,<,7 !,=,$ >,=,! ?,>,! 3,>,? 5,3,? %,9,? $,<,% +,*,0 /,+,1 @,A,2 &,.,' B,.,& C,D,; &,E,B &,C,E D,C,& (,D,& (,6,D (,),6 -,.,B /,',. 0,*,F G,0,F H,0,G H,1,0 4,1,H 2,G,@ 2,H,G 4,H,2 9,I,? 6,),I 7,I,9 6,I,7 8,D,6 ;,D,8 !,%,? 2,>,3 A,>,2 A,=,> $,=,J C,;,: E,C,: B,E,: B,:,< -,B,< -,<,$ -,$,* $,J,* J,=,* =,F,* =,A,@ =,@,F @,G,F /,1,4 /,4,5 ',/,5 5,?,I ',5,I ',I,)";
+
+// } data
+
+var ObjParser = {
+    triangulate: function(face) {
+        let faces = [];
+        for (var prev = 1, i = 2; i < face.length; prev = i++) {
+            faces.push([face[0], face[prev], face[i]]);
+        }
+        return faces;
+    },      
+    parse: function(fileCode) {
+        let objFile = fileCode.split("\n");
+    
+        let newObj = {
+            metadata: [],
+            vertices: [],
+            faces: []
+        };
+    
+        let vals;
+        for (var i = 0; i < objFile.length; i++) {
+            var cmd = objFile[i];
+            var type = cmd.split(" ")[0];
+    
+            var valStart = 1;
+            while (cmd.charAt(valStart) !== " " && valStart < cmd.length) {
+                valStart++;
+            }
+            while (cmd.charAt(valStart) === " " && valStart < cmd.length) {
+                valStart++;
+            }
+    
+            let params, param;
+            switch (type) {
+                case "#":
+                    var comment = cmd.slice(valStart, cmd.length);
+                    if (comment.length > 0) {
+                        newObj.metadata.push(comment);
+                    }
+    
+                    break;
+                case "v":
+                    params = cmd.slice(valStart, cmd.length).split(" ");
+    
+                    for (var p = 0; p < params.length; p++) {
+                        param = params[p];
+                        if (param.length > 0) {
+                            newObj.vertices.push(Number(param));
+                        }
+                    }
+
+                    break;
+                case "f":
+                    params = cmd.slice(valStart, cmd.length).split(" ");
+                    vals = [];
+    
+                    for (var p = 0; p < params.length; p++) {
+                        param = params[p];
+                        if (param.length > 0) {
+                            if (param.includes("/")) {
+                                param = param.split("/")[0];
+                            }
+                            vals.push(Number(param) - 1);
+                        }
+                    }
+    
+                    newObj.faces.push(vals);
+                    break;
+            }
+    
+        }
+
+        return newObj;
+    },
+    toBabylonMesh: function(objFile, sz=[1, 1, 1], trans=[0, 0, 0], rot=[0, 0, 0]) {
+        let BABYLON = window.BABYLON;
+        let scene = window.scene;
+
+        let myMesh = new BABYLON.Mesh("custom", scene);
+        let vertexData = new BABYLON.VertexData();
+
+        if (typeof sz === "number") {
+            sz = [sz, sz, sz];
+        }
+
+        if (typeof objFile === "string") {
+            objFile = ObjParser.parse(objFile);
+        }
+
+        let vertices = objFile.vertices;
+
+        let cos = Math.cos;
+        let sin = Math.sin;
+
+        let trigCache = [
+            cos(rot[0]), sin(rot[0]),
+            cos(rot[1]), sin(rot[1]),
+            cos(rot[2]), sin(rot[2]),
+        ]
+
+        let vx, vy;
+        for (var i = 0; i < vertices.length; i += 3) {
+            // rotate x
+            if (rot[0] !== 0) {
+                vy = vertices[i+1];
+                vertices[i+1] = vy * trigCache[0] - vertices[i+2] * trigCache[1];
+                vertices[i+2] = vy* trigCache[1] + vertices[i+2] * trigCache[0]
+            }
+            
+            // rotate y
+            if (rot[1] !== 0) {
+                vx = vertices[i];
+                vertices[i] = vx * trigCache[2] + vertices[i+2] * trigCache[3];
+                vertices[i+2] = vertices[i+2] * trigCache[2] - vx * trigCache[3];
+            }
+
+            // rotate z
+            if (rot[2] !== 0) {
+                vx = vertices[i];
+                vertices[i] = vx * trigCache[4] - vertices[i+1] * trigCache[5];
+                vertices[i+1] = vx * trigCache[5] + vertices[i+1] * trigCache[4];
+            }
+
+            // translate
+            vertices[i] += trans[0];
+            vertices[i+1] += trans[1];
+            vertices[i+2] += trans[2];
+        }
+
+        let newFaces = [], f;
+        for (var i = 0; i < objFile.faces.length; i++) {
+            f = objFile.faces[i];
+            switch (f.length) {
+                case 2:
+                    newFaces.push(f[0], f[1], f[0]);
+                    break;
+                case 2:
+                    newFaces.push(f[0], f[1], f[2]);
+                    break;
+                default: {
+                    let triangulatedFaces = ObjParser.triangulate(f), face;
+                    for (var j = 0; j < triangulatedFaces.length; j++) {
+                        face = triangulatedFaces[j];
+                        newFaces.push(face[0], face[1], face[2]);
+                    }
+                    break;
+                }
+            }
+        }
+
+        let faces = newFaces,
+            normals = [],
+            uvs = [];
+
+        // take uv value relative to bottom left corner of roof (-4, -4) noting length and width of roof is 8; base uv value on the x, z coordinates only
+        for (var p = 0, len = vertices.length / 3; p < len; p++) {
+            // *0.125 rather than /8 for micro-optimization
+            uvs.push((vertices[3 * p] + 4) * 0.125, (vertices[3 * p + 2] + 4) * 0.125);
+        }
+
+        // Calculations of normals added
+        BABYLON.VertexData.ComputeNormals(vertices, faces, normals);
+
+        vertexData.positions = vertices;
+        vertexData.indices = faces;
+        vertexData.normals = normals; //Assignment of normal to vertexData added
+        vertexData.uvs = uvs;
+        vertexData.applyToMesh(myMesh);
+
+        myMesh.convertToFlatShadedMesh();
+
+        // use scaling
+        myMesh.scaling.x = sz[0];
+        myMesh.scaling.y = sz[1];
+        myMesh.scaling.z = sz[2];
+    
+        return myMesh;
+    }
+};
+function decompress(compressedStr) {
+    var base182 = {
+        codeKey: "!$%&'()*+-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdeghijklmnopqrstuwxyz{|}~¡¢£¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ",
+        encode: function(num) {
+            var placeValues = 0;
+            while (Math.pow(this.codeKey.length, placeValues) <= num + 1) {
+                placeValues++;
+            }
+        
+            var encoded = "";
+            for (var i = placeValues; i > 0; i--) {
+                var factor = Math.pow(this.codeKey.length, i - 1);
+                encoded += this.codeKey.charAt(Math.floor(num / factor));
+                num -= Math.floor(num / factor) * factor;
+            }
+        
+            return encoded;
+        },
+        decode: function(num) {
+            var decoded = 0;
+            for (var i = num.length; i > 0; i--) {
+                var value = Math.pow(this.codeKey.length, i - 1).toString();
+                var value2 = this.codeKey.indexOf(num.charAt(num.length - i));
+                var value3 = value * value2;
+                decoded += value3;
+            }
+        
+            return decoded;
+        }
+    };
+
+    var vertexData = new BABYLON.VertexData();
+    var data = compressedStr.split(",,");
+    data[0] = data[0].split(",");
+    data[1] = data[1].split(" ");
+
+    for (var i = 0; i < data[0].length; i++) {
+        var param = data[0][i];
+        if (param.charAt(0) === " ") {
+            param = base182.decode(param.slice(1, param.length)) / -100;
+        } else {
+            param = base182.decode(param) / 100;
+        }
+        data[0][i] = param;
+    }
+
+    for (var i = 0; i < data[1].length; i++) {
+        var face = data[1][i].split(",");
+        for (var j = 0; j < face.length; j++) {
+            face[j] = base182.decode(face[j]);
+        }
+        data[1][i] = face;
+    }
+
+    var decompressedObjFile = {
+        vertices: data[0],
+        faces: data[1]
+    };
+
+    return decompressedObjFile;
+}
+
+var scl = [0.21, -0.21, 0.21];
+var trans = [0, -10, 0];
+var rot = [0.9, 4.7, 0.0];
+
+var body = ObjParser.toBabylonMesh(decompress(amogusBody), scl, trans, rot);
+var eyesBorder = ObjParser.toBabylonMesh(decompress(amogusEyesBorder), scl, trans, rot);
+var eyes = ObjParser.toBabylonMesh(decompress(amogusEyes), scl, trans, rot);
+
+var redMat = new BABYLON.StandardMaterial(scene);
+redMat.diffuseColor = new BABYLON.Color3(0.9, 0.0, 0);
+redMat.backFaceCulling = false;
+// redMat.wireframe = true;
+body.material = redMat;
+
+var blackMat = new BABYLON.StandardMaterial(scene);
+blackMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+blackMat.backFaceCulling = false;
+// blackMat.wireframe = true;
+eyesBorder.material = blackMat;
+
+var lightBlueMat = new BABYLON.StandardMaterial(scene);
+lightBlueMat.diffuseColor = new BABYLON.Color3(0.5, 0.6, 1);
+lightBlueMat.backFaceCulling = false;
+// lightBlueMat.wireframe = true;
+eyes.material = lightBlueMat;
+
+function runProgram () {
+    engine.runRenderLoop(function () {
+        scene.render();
+    });
+}
+
+runProgram();
+
+    </script>
+
+</body>
+</html>
