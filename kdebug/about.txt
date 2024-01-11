@@ -1,0 +1,19 @@
+SUMMARY
+I installed Kubuntu on my laptop that has a Ryzen 5 5600H with integrated graphics and the operating system was running perfectly fine and looked perfectly normal. Then I tried to change the display resolution in the display settings and as soon as I clicked apply settings it immediately covered my screen with rgb static, lines, and my screen started flickering. I restarted the computer and the graphical glitches were still there. I reset the display resolution and restarted again: the glitches remained. I figured it was a driver issue but when I opened my bios it was still glitching and the os drivers shouldn't affect the bios. I then completely wiped the drive, did a clean install of windows and restarted and glitches remained. Reinstalled drivers and restarted computer and glitches remain. This confirms that it's not an operating system or driver issue, but rather that KDE plasma physically damaged my graphics card.
+
+STEPS TO REPRODUCE
+1. Install Kubuntu on laptop with AMD Ryzen 5 5600H
+2. Open display settings and change the display resolution
+3. Observe corrupted graphics output
+
+OBSERVED RESULT
+My graphics card was damaged and now my display is flickery and has lines
+
+EXPECTED RESULT
+For my display resolution to change without destroying my graphics card.
+
+SOFTWARE/OS VERSIONS
+Kubuntu 23.10
+KDE Plasma Version:  Plasma 5.27
+
+ADDITIONAL INFORMATION
