@@ -1,0 +1,133 @@
+const std = @import("std");
+
+var store32: u32 = undefined;
+var store64: u64 = undefined;
+
+inline fn benchGen(comptime T1: type, comptime T2: type) fn() i64 {
+    return struct {
+        fn bench() i64 {
+            var accumulator: T2 = 0;
+
+            // loop iterator
+            var i: T2 = 0;
+
+            var seed: T1 = switch (@typeInfo(T1)) {
+                .int => 987654321,
+                .float => 9876.54321,
+                else => unreachable
+            };
+            
+            const start = std.time.microTimestamp();
+
+            while (i < 10000000) : (i += 1) {
+                switch (@typeInfo(T1)) {
+                    .int => {
+                        const b: T1 = 3;
+                        seed = @divTrunc(seed, b) + b;
+                    },
+                    .float => {
+                        const b: T1 = 3.012346;
+                        seed = seed / b + b;
+                    },
+                    else => unreachable
+                }
+                
+                switch (@typeInfo(T1)) {
+                    .int => {
+                        switch (@typeInfo(T2)) {
+                            .int => {
+                                accumulator = @as(T2, @intCast(seed));
+                            },
+                            .float => {
+                                accumulator = @as(T2, @floatFromInt(seed));
+                            },
+                            else => unreachable
+                        }
+                    },
+                    .float => {
+                        switch (@typeInfo(T2)) {
+                            .int => {
+                                accumulator = @as(T2, @intFromFloat(seed));
+                            },
+                            .float => {
+                                accumulator = @as(T2, @floatCast(seed));
+                            },
+                            else => unreachable
+                        }
+                    },
+                    else => unreachable
+                }
+
+                // so that result is not optimized away
+                switch (T2) {
+                    f32, i32, u32 => {
+                        store32 = store32 | @as(u32, @bitCast(accumulator));
+                    },
+                    f64, i64, u64 => {
+                        store64 = store64 | @as(u64, @bitCast(accumulator));
+                    },
+                    else => unreachable
+                }
+            }
+
+            const end = std.time.microTimestamp();
+
+            return @divTrunc(end - start, 1000);
+        }
+    }.bench;
+}
+
+const types = [_][]const u8{
+    "f32 -> f32",
+    "f32 -> f64",
+    "f64 -> f64",
+    "f64 -> f32",
+    "i32 -> i32",
+    "i32 -> i64",
+    "i64 -> i64",
+    "i64 -> i32",
+    "i32 -> f32",
+    "i32 -> f64",
+    "f32 -> i32",
+    "f64 -> i32",
+};
+
+const fns = [_]*const fn() i64{
+    benchGen(f32, f32),
+    benchGen(f32, f64),
+    benchGen(f64, f64),
+    benchGen(f64, f32),
+
+    benchGen(i32, i32),
+    benchGen(i32, i64),
+    benchGen(i64, i64),
+    benchGen(i64, i32),
+
+    benchGen(i32, f32),
+    benchGen(i32, f64),
+    benchGen(f32, i32),
+    benchGen(f64, i32),
+};
+
+pub fn main() void {
+    var times = [fns.len]i64{
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0
+    };
+    
+    const runs = 10;
+    {var j: usize = 0; while (j < runs) : (j += 1) {
+        {var i: usize = 0; while (i < fns.len) : (i += 1) {
+            times[i] += fns[i]();
+        }}
+        std.debug.print("{}/{}\n", .{j, runs});
+    }}
+
+    {var i: usize = 0; while (i < fns.len) : (i += 1) {
+        std.debug.print("{s}: {} microseconds per 10 million ops\n", .{types[i], @divTrunc(times[i], runs)});
+    }}
+
+    // so that result is not optimized away
+    std.debug.print("{} {}\n", .{store32, store64});
+}
