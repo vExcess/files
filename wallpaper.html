@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Wallpaper</title>
+
+    <style>
+        body {
+            margin: 0;
+        }
+
+    </style>
+    
+    <script src="https://cdn.jsdelivr.net/gh/librepaint/drawlite@main/javascript/drawlite.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/librepaint/drawlite@main/javascript/drawlite-filter.js"></script>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <script type>
+var canvas = document.getElementById("canvas");
+var dl = Drawlite(canvas);
+var { PI, TWO_PI, EPSILON, CORNER, CORNERS, LEFT, RIGHT, TOP, CENTER, BOTTOM, BASELINE, RADIUS, DEGREES, RADIANS, POINTS, LINES, TRIANGLES, TRIANGLE_STRIP, TRIANGLE_FAN, QUADS, QUAD_STRIP, CLOSE, ROUND, PROJECT, SQUARE, BEVEL, MITER, RGB, HSB, NATIVE, canvas, Color, PerlinNoise, PRNG, vec3, ctx, size, angleMode, noLoop, loop, frameRate, min, max, floor, round, ceil, abs, constrain, sq, sqrt, pow, sin, cos, tan, asin, acos, atan, atan2, log, random, dist, map, lerp, radians, degrees, color, lerpColor, fill, stroke, strokeWeight, strokeCap, strokeJoin, noStroke, noFill, beginShape, vertex, splineVertex, bezierVertex, bezierPoint, bezierTangent, splineTightness, splineVertex, splinePoint, splineTangent, lerpSpline, endShape, spline, snip, getColor, imageMode, image, loadImage, font, textSize, textAlign, textWidth, textAscent, textDescent, textLeading, text, background, point, line, rectMode, rect, triangle, quad, arc, circle, ellipseMode, ellipse, bezier, get, pushMatrix, popMatrix, resetMatrix, scale, translate, rotate, loadPixels, updatePixels, colorMode, enableContextMenu, millis, second, minute, hour, day, month, year, smooth, nosmooth, createGraphics, getProperties } = dl;
+
+var globalScale = 3;
+
+size(600*globalScale, 400*globalScale);
+enableContextMenu();
+
+function multiLerp(list, amount) {
+    amount = map(amount, 0, 1, 0, list.length-1);
+    var amt = amount - floor(amount);
+    amount = floor(amount);
+    if (amount >= list.length - 1) {
+        return list[list.length-1];
+    }
+    return lerp(list[amount], list[amount+1], amt);
+}
+
+function col(arr, idx) {
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+        out.push(arr[i][idx]);
+    }
+    return out;
+}
+
+function bizyay(clrs, bezs, szs) {
+    var reds = col(clrs, 0);
+    var greens = col(clrs, 1);
+    var blues = col(clrs, 2);
+    
+    var x0s = col(bezs, 0);
+    var y0s = col(bezs, 1);
+    var x1s = col(bezs, 2);
+    var y1s = col(bezs, 3);
+    var x2s = col(bezs, 4);
+    var y2s = col(bezs, 5);
+    var x3s = col(bezs, 6);
+    var y3s = col(bezs, 7);
+    
+    noFill();
+    for (var i = 0; i < 50; i++) {
+        var l = i / 49.0;
+        strokeWeight(multiLerp(szs, l));
+        stroke(
+            multiLerp(reds, l), 
+            multiLerp(greens, l), 
+            multiLerp(blues, l)
+        );
+        bezier(
+            multiLerp(x0s, l), multiLerp(y0s, l),
+            multiLerp(x1s, l), multiLerp(y1s, l),
+            multiLerp(x2s, l), multiLerp(y2s, l),
+            multiLerp(x3s, l), multiLerp(y3s, l)
+        );
+    }
+}
+
+function render() {
+    pushMatrix();
+        scale(globalScale);
+        
+        background(5);
+    
+        strokeCap(ROUND);
+    
+        bizyay([
+            [5, 10, 30],
+            [5, 10, 80],
+            [5, 30, 60],
+            [30, 150, 180],
+            [250, 250, 280],
+        ], [
+            [-18, 75, 284, 56, 1014, 472, 46, 502],
+        ], [
+            310, 214, 1
+        ]);
+    
+        bizyay([
+            [5, 10, 30],
+            [5, 10, 80],
+            [5, 30, 60],
+            [30, 150, 180],
+            [250, 250, 280],
+        ], [
+            [-18, -23, 284, 221, 1014, 472, 46, 502],
+        ], [
+            310, 214, 1
+        ]);
+        
+        bizyay([
+            [5, 10, 20],
+            [5, 10, 60],
+            [30, 180, 180],
+        ], [
+            [637, 6, 285, 102, 644, 78, 671, 289],
+            [637, 6, 538, 102, 644, 78, 671, 289],
+        ], [
+            160, 10
+        ]);
+    
+        bizyay([
+            [225, 220, 175],
+            [250, 120, 75],
+            [210, 10, 70],
+            [210, 10, 70],
+            [40, 0, 45],
+        ], [
+            [25, 0, 411, 184, 654, 331, 448, 411],
+            [171, 82, 355, 132, 354, 257, 213, 391],
+            [207, 126, 257, 213, 250, 215, 172, 367],
+        ], [
+            70, 60
+        ]);
+        
+    popMatrix();
+    
+    dl.filter(dl.BLUR, 20*globalScale);
+    
+    loadPixels();
+    var pixels = get.imageData.data;
+    var copy = pixels.slice();
+    for (var i = 0; i < pixels.length; i += 4) {
+        var x = (i >> 2) % get.width;
+        var y = ((i >> 2) / get.width) | 0;
+        
+        var throb = x % (14*globalScale) - (14/2*globalScale);
+        
+        var idx = ((x+throb*4) + y * get.width) << 2;
+
+        var ran = random(-7, 7);
+        
+        pixels[i+0] = copy[idx+0] + ran + throb*0.25;
+        pixels[i+1] = copy[idx+1] + ran + throb*0.25;
+        pixels[i+2] = copy[idx+2] + ran + throb*0.25;
+    }
+    updatePixels();
+    
+    var pad = 51;
+    var img = snip(0, 0, get.width, get.height);
+    size(get.width - pad*2, get.height);
+    image(img, -pad, 0);
+}
+
+render();
+
+    </script>
+
+</body>
+</html>
